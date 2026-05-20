@@ -49,17 +49,17 @@ function SharedLayout() {
 
       {/* Top Header Section */}
       <header className="pt-24 pb-16 px-4 flex flex-col items-center">
-        <div className="font-script text-6xl md:text-8xl lg:text-[7rem] text-slate-700 mb-12 select-none">
+        <div className="font-script text-6xl md:text-8xl lg:text-[7rem] text-[#0000FF] mb-12 select-none">
           <Link to="/">Josi e Gabriel</Link>
         </div>
         
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex flex-wrap justify-center gap-6 max-w-5xl items-center">
+        <nav className="hidden md:flex flex-wrap justify-center gap-4 max-w-5xl items-center">
           {navLinks.map((link) => (
             <NavLink 
               key={link.name} 
               to={link.href} 
-              className={({isActive}) => `text-base md:text-lg font-medium transition-colors ${isActive ? 'text-[#8C7A6B] font-semibold' : 'text-slate-500 hover:text-[#8C7A6B]'}`}
+            className={({isActive}) => `px-3 py-1 text-base md:text-lg font-medium transition-colors ${isActive ? 'bg-slate-800 text-white font-semibold' : 'bg-slate-700 text-white hover:bg-slate-800'}`}
             >
               {link.name}
             </NavLink>
@@ -84,7 +84,7 @@ function SharedLayout() {
           <NavLink 
             key={link.name} 
             to={link.href} 
-            className={({isActive}) => `text-xl font-medium ${isActive ? 'text-blue-800 underline underline-offset-8' : 'text-slate-500'}`}
+            className={({isActive}) => `px-6 py-2 w-full text-center text-xl font-medium transition-colors ${isActive ? 'bg-slate-800 text-white font-semibold' : 'bg-slate-700 text-white hover:bg-slate-800'}`}
           >
             {link.name}
           </NavLink>
@@ -142,20 +142,20 @@ function Countdown() {
   return (
     <div className="flex gap-6 sm:gap-10 justify-center mt-8 p-6 max-w-lg mx-auto">
       <div className="flex flex-col items-center">
-        <span className="text-4xl sm:text-5xl font-light text-slate-700">{timeLeft.days}</span>
-        <span className="text-[10px] uppercase tracking-widest text-[#8C7A6B] mt-2">Dias</span>
+        <span className="text-4xl sm:text-5xl font-light text-[#0000FF]">{timeLeft.days}</span>
+        <span className="text-[10px] uppercase tracking-widest text-[#E0AA3E] mt-2">Dias</span>
       </div>
       <div className="flex flex-col items-center">
-        <span className="text-4xl sm:text-5xl font-light text-slate-700">{timeLeft.hours.toString().padStart(2, '0')}</span>
-        <span className="text-[10px] uppercase tracking-widest text-[#8C7A6B] mt-2">Horas</span>
+        <span className="text-4xl sm:text-5xl font-light text-[#0000FF]">{timeLeft.hours.toString().padStart(2, '0')}</span>
+        <span className="text-[10px] uppercase tracking-widest text-[#E0AA3E] mt-2">Horas</span>
       </div>
       <div className="flex flex-col items-center">
-        <span className="text-4xl sm:text-5xl font-light text-slate-700">{timeLeft.minutes.toString().padStart(2, '0')}</span>
-        <span className="text-[10px] uppercase tracking-widest text-[#8C7A6B] mt-2">Minutos</span>
+        <span className="text-4xl sm:text-5xl font-light text-[#0000FF]">{timeLeft.minutes.toString().padStart(2, '0')}</span>
+        <span className="text-[10px] uppercase tracking-widest text-[#E0AA3E] mt-2">Minutos</span>
       </div>
       <div className="flex flex-col items-center">
-        <span className="text-4xl sm:text-5xl font-light text-slate-700">{timeLeft.seconds.toString().padStart(2, '0')}</span>
-        <span className="text-[10px] uppercase tracking-widest text-[#8C7A6B] mt-2">Segundos</span>
+        <span className="text-4xl sm:text-5xl font-light text-[#0000FF]">{timeLeft.seconds.toString().padStart(2, '0')}</span>
+        <span className="text-[10px] uppercase tracking-widest text-[#E0AA3E] mt-2">Segundos</span>
       </div>
     </div>
   );
@@ -180,8 +180,8 @@ function Inicio() {
       {/* Removed small corner images per request */}
 
       <div className="space-y-4 pt-10">
-        <p className="text-[#8C7A6B] font-medium tracking-[0.2em] uppercase text-sm">Save the Date</p>
-        <h2 className="text-3xl md:text-5xl font-serif text-slate-700 italic">11 de Agosto de 2026</h2>
+        <p className="text-[#E0AA3E] font-medium tracking-[0.2em] uppercase text-sm">Save the Date</p>
+        <h2 className="text-3xl md:text-5xl font-serif text-[#0000FF] italic">11 de Agosto de 2026</h2>
       </div>
 
       <Countdown />
@@ -619,7 +619,7 @@ function Presentes() {
     };
   }, []);
 
-  const isAdmin = user?.email === 'gabrielcalid@gmail.com';
+  const isAdmin = user?.email === 'gabrielcalid@gmail.com' || user?.email === 'josi.bio21@gmail.com';
 
   const startEditing = (gift: any) => {
     setEditingId(gift.id);
@@ -1119,7 +1119,7 @@ function AdminPanel() {
     }
   };
 
-  const isAdmin = user?.email === 'gabrielcalid@gmail.com';
+  const isAdmin = user?.email === 'gabrielcalid@gmail.com' || user?.email === 'josi.bio21@gmail.com';
 
   if (loading) {
     return (
