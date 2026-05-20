@@ -249,8 +249,10 @@ const compressImage = (file: File): Promise<string> => {
 
 function Casamento() {
   const [eventImage, setEventImage] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, setUser);
     const unsub = onSnapshot(doc(db, 'site_images', 'evento'), (docSnap) => {
       if (docSnap.exists() && docSnap.data().base64) {
         setEventImage(docSnap.data().base64);
@@ -315,10 +317,12 @@ function Casamento() {
             </div>
           </div>
           
-          <label className="flex items-center justify-center gap-2 w-full py-4 bg-blue-400 hover:bg-blue-500 text-white font-medium rounded-2xl transition-all shadow-md active:scale-[0.98] cursor-pointer">
-            <Upload className="w-5 h-5" /> Mudar Foto do Evento
-            <input type="file" accept="image/*" onChange={handleUpload} className="hidden" />
-          </label>
+          {(user?.email === 'gabrielcalid@gmail.com' || user?.email === 'josi.bio21@gmail.com') && (
+            <label className="flex items-center justify-center gap-2 w-full py-4 bg-blue-400 hover:bg-blue-500 text-white font-medium rounded-2xl transition-all shadow-md active:scale-[0.98] cursor-pointer">
+              <Upload className="w-5 h-5" /> Mudar Foto do Evento
+              <input type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+            </label>
+          )}
         </div>
       </div>
     </div>
@@ -327,8 +331,10 @@ function Casamento() {
 
 function Fotos() {
   const [galleryImages, setGalleryImages] = useState<Record<number, string>>({});
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, setUser);
     const unsub = onSnapshot(doc(db, 'site_images', 'galeria'), (docSnap) => {
       if (docSnap.exists() && docSnap.data().images) {
         setGalleryImages(docSnap.data().images);
@@ -385,20 +391,22 @@ function Fotos() {
               </div>
             </div>
             
-            <label className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] cursor-pointer">
-              <Upload className="w-8 h-8 text-white mb-2" />
-              <span className="text-white text-xs font-medium px-2 text-center">Alterar Foto</span>
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleUpload(i, e.target.files[0]);
-                  }
-                }} 
-                className="hidden" 
-              />
-            </label>
+            {(user?.email === 'gabrielcalid@gmail.com' || user?.email === 'josi.bio21@gmail.com') && (
+              <label className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] cursor-pointer">
+                <Upload className="w-8 h-8 text-white mb-2" />
+                <span className="text-white text-xs font-medium px-2 text-center">Alterar Foto</span>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleUpload(i, e.target.files[0]);
+                    }
+                  }} 
+                  className="hidden" 
+                />
+              </label>
+            )}
           </div>
         ))}
       </div>
@@ -601,12 +609,7 @@ function Presentes() {
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setUser(u);
-      } else {
-        // Force admin state for the owner
-        setUser({ email: 'gabrielcalid@gmail.com' } as any);
-      }
+      setUser(u);
     });
     const qGift = query(collection(db, 'gifts'), orderBy('createdAt', 'asc'));
     const unsubGift = onSnapshot(qGift, (snapshot) => {
@@ -915,6 +918,8 @@ function PagamentoPix() {
 function AdminPanel() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [isAuthenticatedAdmin, setIsAuthenticatedAdmin] = useState(false);
   const navigate = useNavigate();
 
   const [rsvps, setRsvps] = useState<any[]>([]);
@@ -937,23 +942,14 @@ function AdminPanel() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setUser(u);
-      } else {
-        // Force admin state as requested by the user
-        setUser({ 
-          email: 'gabrielcalid@gmail.com', 
-          displayName: 'Gabriel Calid (Admin)',
-          uid: 'forced-admin'
-        } as any);
-      }
+      setUser(u);
       setLoading(false);
     });
     return () => unsub();
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!isAuthenticatedAdmin) return;
     
     // Listen RSVPs
     const qRsvp = query(collection(db, 'rsvps'), orderBy('createdAt', 'desc'));
@@ -971,24 +967,9 @@ function AdminPanel() {
       unsubRsvp();
       unsubGift();
     }
-  }, [user]);
+  }, [isAuthenticatedAdmin]);
 
-  const login = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (e: any) {
-      console.error(e);
-      if (e.code === 'auth/popup-blocked') {
-        alert('O popup foi bloqueado pelo navegador. Por favor, habilite popups ou abra o site em uma nova aba.');
-      } else {
-        alert('Erro ao fazer login: ' + (e.message || 'Tente novamente abrindo em nova aba.'));
-      }
-    }
-  }
-
-  const logout = async () => {
-    await signOut(auth);
+  const logout = () => {
     navigate('/');
   }
 
@@ -1119,8 +1100,6 @@ function AdminPanel() {
     }
   };
 
-  const isAdmin = user?.email === 'gabrielcalid@gmail.com' || user?.email === 'josi.bio21@gmail.com';
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -1129,36 +1108,44 @@ function AdminPanel() {
     );
   }
 
-  if (!user) {
+  if (!isAuthenticatedAdmin) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-10 rounded-[2.5rem] shadow-xl text-center max-w-md w-full border border-slate-100"
-        >
+        <div className="bg-white p-10 rounded-[2.5rem] shadow-xl text-center max-w-md w-full border border-slate-100">
           <div className="w-20 h-20 bg-blue-50 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-blue-100">
             <Lock className="w-10 h-10" />
           </div>
-          <h2 className="text-3xl font-script text-slate-800 mb-2">Acesso Restrito</h2>
-          <p className="text-slate-500 mb-8 font-light leading-relaxed">
-            Área exclusiva para os noivos gerenciarem o site.<br/>
-            Faça login com sua conta Google.
-          </p>
+          <h2 className="text-3xl font-script text-slate-800 mb-4">Senha Administrativa</h2>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (adminPassword === 'josi2121') {
+              setIsAuthenticatedAdmin(true);
+            } else {
+              alert('Senha incorreta.');
+            }
+          }}>
+            <input 
+              type="password"
+              placeholder="Digite a senha"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-4 text-center"
+              autoFocus
+            />
+            <button 
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-xl transition-all cursor-pointer"
+            >
+              Acessar Painel
+            </button>
+          </form>
           <button 
-            onClick={login} 
-            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl transition-all shadow-lg active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+            onClick={() => navigate('/')}
+            className="w-full mt-4 bg-slate-50 hover:bg-slate-200 text-slate-500 font-medium py-2 px-6 rounded-xl transition-all cursor-pointer text-sm"
           >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="" />
-            Entrar com Google
+            Voltar para o site
           </button>
-          <button 
-            onClick={() => navigate('/')} 
-            className="mt-6 text-slate-400 hover:text-slate-600 text-sm font-medium transition-colors cursor-pointer"
-          >
-            Voltar para o Site
-          </button>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -1173,11 +1160,9 @@ function AdminPanel() {
           <div>
             <h1 className="font-semibold text-slate-800 flex items-center gap-2">
               Painel Administrativo
-              {isAdmin && (
-                <span className="text-[9px] bg-green-500 text-white px-2 py-0.5 rounded-full uppercase font-black tracking-widest">Admin</span>
-              )}
+              <span className="text-[9px] bg-green-500 text-white px-2 py-0.5 rounded-full uppercase font-black tracking-widest">Admin</span>
             </h1>
-            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">{user.email}</p>
+            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">Administrador</p>
           </div>
         </div>
         <button 
@@ -1190,19 +1175,6 @@ function AdminPanel() {
       </header>
 
       <main className="max-w-5xl mx-auto p-4 py-8 space-y-12">
-        {!isAdmin && (
-          <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl flex items-start gap-4 mb-8">
-            <div className="bg-amber-100 p-2 rounded-lg text-amber-600">
-              <Lock size={20} />
-            </div>
-            <div>
-              <p className="text-amber-800 font-semibold mb-1">Acesso Limitado</p>
-              <p className="text-amber-700 text-sm leading-relaxed">
-                Você está logado, mas sua conta não tem privilégios de administrador. Você pode visualizar os dados, mas não pode realizar alterações.
-              </p>
-            </div>
-          </div>
-        )}
         <div className="mb-4">
           <Link to="/" className="text-blue-600 hover:underline text-sm font-medium">&larr; Voltar ao site</Link>
         </div>
@@ -1306,20 +1278,19 @@ function AdminPanel() {
             </div>
             <div>
               <label className="block text-sm text-slate-500 mb-1">Nome do Presente</label>
-              <input readOnly={!isAdmin} required type="text" value={giftName} onChange={e => setGiftName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100" />
+              <input required type="text" value={giftName} onChange={e => setGiftName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100" />
             </div>
             <div>
               <label className="block text-sm text-slate-500 mb-1">Valor (R$)</label>
-              <input readOnly={!isAdmin} required type="number" step="0.01" min="0" value={giftValue} onChange={e => setGiftValue(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100" />
+              <input required type="number" step="0.01" min="0" value={giftValue} onChange={e => setGiftValue(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100" />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm text-slate-500 mb-1">Link de Pagamento Mercado Pago (Opcional)</label>
-              <input readOnly={!isAdmin} type="url" value={mercadoPagoLink} onChange={e => setMercadoPagoLink(e.target.value)} placeholder="https://link.mercadopago.com.br/..." className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100" />
+              <input type="url" value={mercadoPagoLink} onChange={e => setMercadoPagoLink(e.target.value)} placeholder="https://link.mercadopago.com.br/..." className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100" />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm text-slate-500 mb-1">Fotos (até 3)</label>
               <input 
-                disabled={!isAdmin}
                 type="file" 
                 multiple 
                 accept="image/*"
@@ -1330,13 +1301,11 @@ function AdminPanel() {
                 <p className="text-xs text-slate-500 mt-2">{giftFiles.length} arquivo(s) selecionado(s)</p>
               )}
             </div>
-            {isAdmin && (
-              <div className="md:col-span-2 flex justify-end mt-2">
-                <button disabled={isUploading} type="submit" className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2">
-                  {isUploading ? 'Adicionando...' : 'Adicionar'}
-                </button>
-              </div>
-            )}
+            <div className="md:col-span-2 flex justify-end mt-2">
+              <button disabled={isUploading} type="submit" className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2">
+                {isUploading ? 'Adicionando...' : 'Adicionar'}
+              </button>
+            </div>
           </form>
 
           <div className="divide-y divide-slate-100 pt-4">
