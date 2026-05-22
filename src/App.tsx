@@ -536,25 +536,23 @@ function Confirmacao() {
   return (
     <div className="w-full space-y-12 max-w-2xl mx-auto">
       <div className="text-center space-y-4">
-        <CheckCircle className="w-8 h-8 text-rose-300 mx-auto opacity-50" />
-        <h2 className="text-4xl md:text-5xl font-script text-rose-400">Confirmar Presença</h2>
+        <CheckCircle className="w-8 h-8 text-[#ce9b2c] mx-auto opacity-50" />
+        <h2 className="text-4xl md:text-5xl font-script text-[#ce9b2c]">Confirmar Presença</h2>
         <p className="text-slate-500 font-light max-w-sm mx-auto tracking-wide">É uma alegria imensa ter você conosco. Por favor, confirme até 30 dias antes.</p>
       </div>
 
-      <form onSubmit={handleSendRsvp} className="bg-gradient-to-br from-rose-200/90 to-rose-300/90 backdrop-blur-md p-8 md:p-12 rounded-[3rem] shadow-2xl space-y-8 text-white relative overflow-hidden">
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-black/10 rounded-full blur-3xl"></div>
+      <form onSubmit={handleSendRsvp} className="bg-white p-8 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 relative overflow-hidden">
         
         <div className="relative z-10 space-y-6">
           <div className="space-y-1.5">
-            <label className="text-[10px] uppercase tracking-widest text-white/80 font-semibold ml-1">Nome Completo</label>
-            <input required type="text" value={rsvpName} onChange={e => setRsvpName(e.target.value)} placeholder="Como está no convite?" className="w-full px-5 py-4 rounded-2xl bg-white/20 text-white placeholder-white/40 border-transparent focus:bg-white/30 focus:ring-2 focus:ring-white/50 outline-none transition-all" />
+            <label className="text-[10px] uppercase tracking-widest text-black font-semibold ml-1">Nome Completo</label>
+            <input required type="text" value={rsvpName} onChange={e => setRsvpName(e.target.value)} placeholder="Como está no convite?" className="w-full px-5 py-4 rounded-2xl bg-slate-50 text-slate-800 placeholder-slate-400 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] uppercase tracking-widest text-white/80 font-semibold ml-1">Telefone WhatsApp</label>
-            <input required type="text" value={rsvpPhone} onChange={e => setRsvpPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-5 py-4 rounded-2xl bg-white/20 text-white placeholder-white/40 border-transparent focus:bg-white/30 focus:ring-2 focus:ring-white/50 outline-none transition-all" />
+            <label className="text-[10px] uppercase tracking-widest text-black font-semibold ml-1">Telefone WhatsApp</label>
+            <input required type="text" value={rsvpPhone} onChange={e => setRsvpPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-5 py-4 rounded-2xl bg-slate-50 text-slate-800 placeholder-slate-400 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
           </div>
-          <button type="submit" className="w-full py-4 mt-6 bg-white text-rose-400 hover:bg-rose-50 font-bold rounded-2xl transition-all shadow-lg active:scale-[0.98] cursor-pointer">Confirmar Minha Presença</button>
+          <button type="submit" className="w-full py-4 mt-6 bg-[#0000FF] hover:bg-blue-700 text-white font-bold rounded-2xl transition-all shadow-lg active:scale-[0.98] cursor-pointer">Confirmar Minha Presença</button>
         </div>
       </form>
 
