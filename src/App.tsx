@@ -198,7 +198,7 @@ function Historia() {
     <div className="w-full space-y-12 bg-white/60 backdrop-blur-sm p-8 md:p-16 rounded-[3rem] border border-blue-100/50 text-center shadow-sm">
       <div className="space-y-4">
         <Heart className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
-        <h2 className="text-4xl md:text-5xl font-script text-blue-400">Nossa História</h2>
+        <h2 className="text-4xl md:text-5xl font-script text-[#ce9b2c]">Nossa História</h2>
       </div>
       <div className="space-y-8 text-slate-600 leading-relaxed text-lg max-w-3xl mx-auto text-left font-light">
         <p className="first-letter:text-5xl first-letter:font-script first-letter:text-blue-400 first-letter:mr-3 first-letter:float-left">Nossa história começou muito antes do nosso primeiro encontro. Deus, em Sua bondade, escreveu cada detalhe do nosso caminho e nos uniu no tempo certo.</p>
@@ -289,7 +289,7 @@ function Casamento() {
     <div className="w-full space-y-12 bg-white/60 backdrop-blur-sm p-8 md:p-16 rounded-[3rem] border border-blue-100/50 text-center shadow-sm">
       <div className="space-y-4">
         <Calendar className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
-        <h2 className="text-4xl md:text-5xl font-script text-blue-400">O Casamento</h2>
+        <h2 className="text-4xl md:text-5xl font-script text-[#ce9b2c]">O Casamento</h2>
       </div>
       <div className="grid md:grid-cols-2 gap-12 text-left items-center">
         <div className="space-y-6">
@@ -372,7 +372,7 @@ function Fotos() {
     <div className="w-full space-y-12 bg-white/60 backdrop-blur-sm p-8 md:p-16 rounded-[3rem] border border-blue-100/50 text-center shadow-sm">
       <div className="space-y-4">
         <Camera className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
-        <h2 className="text-4xl md:text-5xl font-script text-blue-400">Nossos Momentos</h2>
+        <h2 className="text-4xl md:text-5xl font-script text-[#ce9b2c]">Nossos Momentos</h2>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
         {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -667,7 +667,7 @@ function Presentes() {
     <div className="w-full space-y-12">
       <div className="text-center space-y-4">
         <Gift className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
-        <h2 className="text-4xl md:text-5xl font-script text-blue-400">Lista de Presentes</h2>
+        <h2 className="text-4xl md:text-5xl font-script text-[#ce9b2c]">Lista de Presentes</h2>
         <p className="text-slate-500 font-light max-w-lg mx-auto tracking-wide">Sua presença é nosso maior presente! Se desejar nos presentear, preparamos algumas sugestões abaixo.</p>
       </div>
       
