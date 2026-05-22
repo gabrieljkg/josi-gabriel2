@@ -455,30 +455,27 @@ function Recados() {
   return (
     <div className="w-full space-y-12 max-w-3xl mx-auto">
       <div className="text-center space-y-4">
-        <MessageCircle className="w-8 h-8 text-rose-300 mx-auto opacity-50" />
-        <h2 className="text-4xl md:text-5xl font-script text-rose-400">Deixe seu Recado</h2>
+        <MessageCircle className="w-8 h-8 text-[#ce9b2c] mx-auto opacity-50" />
+        <h2 className="text-4xl md:text-5xl font-script text-[#ce9b2c]">Deixe seu Recado</h2>
       </div>
 
-      <form onSubmit={handleSendMessage} className="bg-gradient-to-br from-rose-200/90 to-rose-300/90 backdrop-blur-md p-8 md:p-12 rounded-[3rem] shadow-2xl text-white relative overflow-hidden">
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-black/10 rounded-full blur-3xl"></div>
-        
+      <form onSubmit={handleSendMessage} className="bg-white p-8 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 relative overflow-hidden">
         <div className="relative z-10 space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-widest text-white/80 font-semibold ml-1">Seu Nome</label>
-              <input required type="text" value={msgName} onChange={e => setMsgName(e.target.value)} placeholder="Como você quer ser identificado?" className="w-full px-5 py-4 rounded-2xl bg-white/20 text-white placeholder-white/40 border-transparent focus:bg-white/30 focus:ring-2 focus:ring-white/50 outline-none transition-all" />
+              <label className="text-[10px] uppercase tracking-widest text-black font-semibold ml-1">Seu Nome</label>
+              <input required type="text" value={msgName} onChange={e => setMsgName(e.target.value)} placeholder="Como você quer ser identificado?" className="w-full px-5 py-4 rounded-2xl bg-slate-50 text-slate-800 placeholder-slate-400 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-widest text-white/80 font-semibold ml-1">WhatsApp (Opcional)</label>
-              <input type="text" value={msgPhone} onChange={e => setMsgPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-5 py-4 rounded-2xl bg-white/20 text-white placeholder-white/40 border-transparent focus:bg-white/30 focus:ring-2 focus:ring-white/50 outline-none transition-all" />
+              <label className="text-[10px] uppercase tracking-widest text-black font-semibold ml-1">WhatsApp (Opcional)</label>
+              <input type="text" value={msgPhone} onChange={e => setMsgPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-5 py-4 rounded-2xl bg-slate-50 text-slate-800 placeholder-slate-400 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] uppercase tracking-widest text-white/80 font-semibold ml-1">Sua Mensagem</label>
-            <textarea required value={msgText} onChange={e => setMsgText(e.target.value)} rows={4} placeholder="Escreva algo carinhoso..." className="w-full px-5 py-4 rounded-[1.5rem] bg-white/20 text-white border-transparent focus:bg-white/30 focus:ring-2 focus:ring-white/50 outline-none transition-all resize-none placeholder-white/40"></textarea>
+            <label className="text-[10px] uppercase tracking-widest text-black font-semibold ml-1">Sua Mensagem</label>
+            <textarea required value={msgText} onChange={e => setMsgText(e.target.value)} rows={4} placeholder="Escreva algo carinhoso..." className="w-full px-5 py-4 rounded-[1.5rem] bg-slate-50 text-slate-800 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none placeholder-slate-400"></textarea>
           </div>
-          <button type="submit" className="w-full py-4 mt-6 bg-white text-rose-400 hover:bg-rose-50 font-bold rounded-2xl transition-all shadow-lg active:scale-[0.98] cursor-pointer">Enviar Recado com Carinho</button>
+          <button type="submit" className="w-full py-4 mt-6 bg-[#0000FF] hover:bg-blue-700 text-white font-bold rounded-2xl transition-all shadow-lg active:scale-[0.98] cursor-pointer">Enviar Recado com Carinho</button>
         </div>
       </form>
 
