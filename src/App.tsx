@@ -49,8 +49,12 @@ function SharedLayout() {
 
       {/* Top Header Section */}
       <header className="pt-24 pb-16 px-4 flex flex-col items-center">
-        <div className="font-script text-6xl md:text-8xl lg:text-[7rem] text-[#0000FF] mb-12 select-none">
-          <Link to="/">Josi e Gabriel</Link>
+        <div className="font-script text-6xl md:text-8xl lg:text-[7rem] mb-12 select-none flex items-center justify-center gap-3 md:gap-5">
+          <Link to="/" className="flex items-center gap-3 md:gap-6">
+            <span style={{ color: '#0000FF' }}>Gabriel</span>
+            <span style={{ color: '#ce9b2c' }} className="text-4xl md:text-6xl lg:text-[4.5rem] mt-4 md:mt-6">&</span>
+            <span style={{ color: '#0000FF' }}>Josivania</span>
+          </Link>
         </div>
         
         {/* Desktop Navigation */}
