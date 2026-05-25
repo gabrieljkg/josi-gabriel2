@@ -166,6 +166,17 @@ function Countdown() {
 }
 
 function Inicio() {
+  const [homeImage, setHomeImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'site_images', 'home'), (docSnap) => {
+      if (docSnap.exists() && docSnap.data().base64) {
+        setHomeImage(docSnap.data().base64);
+      }
+    });
+    return () => unsub();
+  }, []);
+
   return (
     <div className="relative text-center w-full max-w-5xl mx-auto space-y-12 pb-20">
       {/* Framed Photo */}
@@ -173,8 +184,8 @@ function Inicio() {
         <div className="bg-white p-2 shadow-xl shadow-slate-200/50 rounded-2xl border border-slate-100 relative overflow-hidden">
           <div className="overflow-hidden aspect-[16/10] relative rounded-xl">
             <img 
-              src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=2000" 
-              alt="Josi e Gabriel" 
+              src={homeImage || "/capa-home.jpg"} 
+              alt="Alianças - Josi e Gabriel" 
               className="w-full h-full object-cover"
             />
           </div>
@@ -1213,6 +1224,27 @@ function AdminPanel() {
           <h2 className="text-xl font-medium text-slate-800">Gerenciar Imagens do Site</h2>
           
           <div className="space-y-6">
+            <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
+              <h3 className="text-sm font-medium text-slate-700 mb-2">Foto "Capa do Site" (Home)</h3>
+              <p className="text-xs text-slate-500 mb-4">Escolha a foto principal que aparecerá na entrada do site.</p>
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={async (e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    try {
+                      const base64 = await compressImage(e.target.files[0]);
+                      await setDoc(doc(db, 'site_images', 'home'), { base64 });
+                      alert('Foto da capa atualizada!');
+                    } catch(err) {
+                      alert('Erro ao atualizar. Tente uma foto menor.');
+                    }
+                  }
+                }}
+                className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+              />
+            </div>
+
             <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
               <h3 className="text-sm font-medium text-slate-700 mb-2">Foto "O Evento"</h3>
               <p className="text-xs text-slate-500 mb-4">Escolha uma foto para destacar o espaço "O Evento / Convite".</p>
