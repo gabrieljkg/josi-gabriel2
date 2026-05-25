@@ -104,14 +104,14 @@ function SharedLayout() {
       </main>
 
       <footer className="py-12 border-t border-blue-100/50 text-center text-slate-400 text-sm">
-        <p>Josi & Gabriel &bull; 11 de Agosto de 2026</p>
+        <p>Josi & Gabriel &bull; 13 de Agosto de 2026</p>
       </footer>
     </div>
   );
 }
 
 function Countdown() {
-  const targetDate = new Date('2026-08-13T00:00:00').getTime();
+  const targetDate = new Date('2026-08-13T18:30:00').getTime();
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
     hours: number;
@@ -196,7 +196,7 @@ function Inicio() {
 
       <div className="space-y-4 pt-10">
         <p className="text-[#E0AA3E] font-medium tracking-[0.2em] uppercase text-sm">Save the Date</p>
-        <h2 className="text-3xl md:text-5xl font-serif text-[#0000FF] italic">11 de Agosto de 2026</h2>
+        <h2 className="text-3xl md:text-5xl font-serif text-[#0000FF] italic">13 de Agosto de 2026</h2>
       </div>
 
       <Countdown />
@@ -306,7 +306,7 @@ function Casamento() {
         <div className="space-y-6">
           <div className="space-y-2">
             <h3 className="text-blue-900 font-medium uppercase tracking-widest text-xs">Data e Horário</h3>
-            <p className="text-2xl text-slate-700 font-light">11 de Agosto de 2026 às 19:30h</p>
+            <p className="text-2xl text-slate-700 font-light">13 de Agosto de 2026 às 18:30h</p>
           </div>
           <div className="space-y-2">
             <h3 className="text-blue-900 font-medium uppercase tracking-widest text-xs">Local</h3>
