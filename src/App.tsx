@@ -306,11 +306,16 @@ function Casamento() {
         <div className="space-y-6">
           <div className="space-y-2">
             <h3 className="text-blue-900 font-medium uppercase tracking-widest text-xs">Data e Horário</h3>
-            <p className="text-2xl text-slate-700 font-light">13 de Agosto de 2026 às 18:30h</p>
+            <p className="text-xl text-slate-700 font-light">13 de Agosto de 2026 às 18:30h</p>
           </div>
           <div className="space-y-2">
             <h3 className="text-blue-900 font-medium uppercase tracking-widest text-xs">Local</h3>
-            <p className="text-2xl text-slate-700 font-light italic">Em breve mais informações...</p>
+            <div className="text-xl text-slate-700 font-light space-y-1">
+              <p>Igreja Adventista do Sétimo Dia</p>
+              <p>Bairro: Eldorado</p>
+              <p>Rua: Guatemala S/N</p>
+              <p className="text-lg text-slate-500 italic mt-2">Próximo à praça do Bairro Eldorado.</p>
+            </div>
           </div>
         </div>
         <div className="space-y-4">
