@@ -16,7 +16,7 @@ const navLinks = [
   { name: 'O Evento', href: '/casamento' },
   { name: 'Fotos', href: '/fotos' },
   { name: 'Recados', href: '/recados' },
-  { name: 'RSVP', href: '/confirmacao' },
+  { name: 'Confirmar Presença', href: '/confirmacao' },
   { name: 'Presentes', href: '/presentes' },
 ];
 
