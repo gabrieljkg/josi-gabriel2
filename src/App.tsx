@@ -939,6 +939,7 @@ function AdminPanel() {
 
   const [rsvps, setRsvps] = useState<any[]>([]);
   const [gifts, setGifts] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
 
   // Gift Form
   const [giftName, setGiftName] = useState('');
@@ -978,9 +979,16 @@ function AdminPanel() {
       setGifts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => handleFirestoreError(error, OperationType.GET, 'gifts'));
 
+    // Listen Messages
+    const qMsg = query(collection(db, 'messages'), orderBy('createdAt', 'desc'));
+    const unsubMsg = onSnapshot(qMsg, (snapshot) => {
+      setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'messages'));
+
     return () => {
       unsubRsvp();
       unsubGift();
+      unsubMsg();
     }
   }, [isAuthenticatedAdmin]);
 
@@ -1036,6 +1044,64 @@ function AdminPanel() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  const [deletingRsvpId, setDeletingRsvpId] = useState<string | null>(null);
+  const [confirmingRsvpId, setConfirmingRsvpId] = useState<string | null>(null);
+
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [confirmingMessageId, setConfirmingMessageId] = useState<string | null>(null);
+
+  const handleDeleteMessage = async (id: string) => {
+    if (!id) return;
+
+    if (confirmingMessageId !== id) {
+      setConfirmingMessageId(id);
+      setTimeout(() => {
+        setConfirmingMessageId(prev => prev === id ? null : prev);
+      }, 4000);
+      return;
+    }
+
+    try {
+      setDeletingMessageId(id);
+      setConfirmingMessageId(null);
+      const msgRef = doc(db, 'messages', id);
+      await deleteDoc(msgRef);
+      alert('Recado excluído!');
+    } catch (error: any) {
+      console.error('Erro ao excluir recado:', error);
+      alert('Erro ao excluir recado: ' + error.message);
+      handleFirestoreError(error, OperationType.DELETE, `messages/${id}`);
+    } finally {
+      setDeletingMessageId(null);
+    }
+  }
+
+  const handleDeleteRsvp = async (id: string) => {
+    if (!id) return;
+
+    if (confirmingRsvpId !== id) {
+      setConfirmingRsvpId(id);
+      setTimeout(() => {
+        setConfirmingRsvpId(prev => prev === id ? null : prev);
+      }, 4000);
+      return;
+    }
+
+    try {
+      setDeletingRsvpId(id);
+      setConfirmingRsvpId(null);
+      const rsvpRef = doc(db, 'rsvps', id);
+      await deleteDoc(rsvpRef);
+      alert('Confirmação de presença excluída!');
+    } catch (error: any) {
+      console.error('Erro ao excluir presença:', error);
+      alert('Erro ao excluir presença: ' + error.message);
+      handleFirestoreError(error, OperationType.DELETE, `rsvps/${id}`);
+    } finally {
+      setDeletingRsvpId(null);
+    }
+  }
 
   const handleDeleteGift = async (id: string) => {
     if (!id) return;
@@ -1205,6 +1271,7 @@ function AdminPanel() {
                 <tr>
                   <th className="px-6 py-3 font-medium">Nome</th>
                   <th className="px-6 py-3 font-medium">Telefone</th>
+                  <th className="px-6 py-3 font-medium text-right">Ação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1212,11 +1279,80 @@ function AdminPanel() {
                   <tr key={rsvp.id} className="hover:bg-slate-50/50">
                     <td className="px-6 py-4">{rsvp.name}</td>
                     <td className="px-6 py-4">{rsvp.phone}</td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => handleDeleteRsvp(rsvp.id)}
+                        disabled={deletingRsvpId === rsvp.id}
+                        className={`p-2 rounded-xl transition-all inline-flex items-center justify-center cursor-pointer disabled:opacity-50 ${
+                          confirmingRsvpId === rsvp.id 
+                            ? 'bg-red-600 text-white hover:bg-red-700 font-medium text-xs px-3 py-1 shadow-sm' 
+                            : 'text-slate-400 hover:text-red-500 hover:bg-slate-100'
+                        }`}
+                        title={confirmingRsvpId === rsvp.id ? 'Confirmar exclusão' : 'Excluir presença'}
+                      >
+                        {confirmingRsvpId === rsvp.id ? (
+                          <span>Excluir?</span>
+                        ) : (
+                          <Trash2 className="w-5 h-5" />
+                        )}
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {rsvps.length === 0 && (
                   <tr>
-                    <td colSpan={2} className="px-6 py-8 text-center text-slate-400">Nenhuma confirmação ainda.</td>
+                    <td colSpan={3} className="px-6 py-8 text-center text-slate-400">Nenhuma confirmação ainda.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Mural de Recados Table */}
+        <section className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <h2 className="text-xl font-medium text-slate-800">Recados Recebidos ({messages.length})</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-slate-600">
+              <thead className="bg-slate-50 border-b border-slate-100 text-sm">
+                <tr>
+                  <th className="px-6 py-3 font-medium">Nome</th>
+                  <th className="px-6 py-3 font-medium">WhatsApp</th>
+                  <th className="px-6 py-3 font-medium">Recado</th>
+                  <th className="px-6 py-3 font-medium text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {messages.map(msg => (
+                  <tr key={msg.id} className="hover:bg-slate-50/50">
+                    <td className="px-6 py-4 font-medium text-slate-800">{msg.name}</td>
+                    <td className="px-6 py-4 text-slate-500">{msg.phone || 'Não informado'}</td>
+                    <td className="px-6 py-4 max-w-xs md:max-w-md truncate md:whitespace-normal italic text-slate-600">"{msg.text}"</td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        disabled={deletingMessageId === msg.id}
+                        className={`p-2 rounded-xl transition-all inline-flex items-center justify-center cursor-pointer disabled:opacity-50 ${
+                          confirmingMessageId === msg.id 
+                            ? 'bg-red-600 text-white hover:bg-red-700 font-medium text-xs px-3 py-1 shadow-sm' 
+                            : 'text-slate-400 hover:text-red-500 hover:bg-slate-100'
+                        }`}
+                        title={confirmingMessageId === msg.id ? 'Confirmar exclusão' : 'Excluir recado'}
+                      >
+                        {confirmingMessageId === msg.id ? (
+                          <span>Excluir?</span>
+                        ) : (
+                          <Trash2 className="w-5 h-5" />
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {messages.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-slate-400">Nenhum recado ainda.</td>
                   </tr>
                 )}
               </tbody>
