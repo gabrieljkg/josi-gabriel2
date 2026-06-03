@@ -781,7 +781,7 @@ function Presentes() {
                             <div className="w-full flex flex-col items-center gap-1">
                               <button 
                                 onClick={() => window.open((gift as any).mercadoPagoLink, '_blank')}
-                                className="block w-3/4 py-2 bg-[#E17E9B] hover:bg-[#D56B8A] text-white text-sm font-medium rounded-sm transition-all shadow-sm active:scale-[0.98] cursor-pointer">
+                                className="block w-3/4 py-2 bg-[#0000FF] hover:bg-[#0000CC] text-white text-sm font-medium rounded-sm transition-all shadow-sm active:scale-[0.98] cursor-pointer">
                                 Cartão Crédito / Débito
                               </button>
                               {isAdmin && (
