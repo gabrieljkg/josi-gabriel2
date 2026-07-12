@@ -10,6 +10,36 @@ import { handleFirestoreError, OperationType } from './lib/firebaseUtils';
 
 const pixPhone = "63992613726";
 
+const isEsgotado = (name: string): boolean => {
+  if (!name) return false;
+  const norm = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const esgotados = [
+    'panela de pressao',
+    'sanduicheira',
+    'jogo de talheres',
+    'jogo de talheires',
+    'liquidificador',
+    'jogo da tabuas de corte',
+    'jogo de tabuas de corte',
+    'tabua de corte',
+    'lixeira',
+    'conjunto de 3 assadeiras',
+    'assadeiras',
+    'travesseiro nasa',
+    'travesseiro',
+    'jogo de lencol queen 4 pecas',
+    'jogo de lencol queen',
+    'lencol queen',
+    'portes de vidro p/mantimentos',
+    'potes de vidro p/mantimentos',
+    'potes de vidro',
+    'portes de vidro',
+    'potes para mantimentos',
+    'jogo de banho'
+  ];
+  return esgotados.some(item => norm.includes(item) || item.includes(norm));
+};
+
 const navLinks = [
   { name: 'Home', href: '/' },
   { name: 'História', href: '/sobre' },
@@ -196,7 +226,8 @@ function Inicio() {
 
       <div className="space-y-4 pt-10">
         <p className="text-[#E0AA3E] font-medium tracking-[0.2em] uppercase text-sm">Save the Date</p>
-        <h2 className="text-3xl md:text-5xl font-serif text-[#0000FF] italic">13 de Agosto de 2026</h2>
+        <h2 className="text-xl md:text-3xl font-serif text-[#0000FF] italic">01 de Agosto de 2026 - Uberlândia MG</h2>
+        <h2 className="text-xl md:text-3xl font-serif text-[#0000FF] italic mt-2">13 de Agosto de 2026 - Araguaína TO</h2>
       </div>
 
       <Countdown />
@@ -738,6 +769,13 @@ function Presentes() {
                       <Gift className="w-10 h-10 text-slate-300" />
                     </div>
                   )}
+                  {isEsgotado(gift.name) && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+                      <span className="bg-red-600 text-white text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-sm shadow-md">
+                        Esgotado
+                      </span>
+                    </div>
+                  )}
                   {isAdmin && (
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
                        <span className="text-white text-[10px] font-bold uppercase tracking-wider bg-black/40 px-2 py-1 rounded">Visualização Admin</span>
@@ -764,11 +802,11 @@ function Presentes() {
                         <span className="text-4xl font-light">{intPart}</span>
                         <span className="text-sm font-medium">,{decPart}</span>
                       </div>
-                      {((gift as any).purchasedCount || 0) >= 2 ? (
+                      {((gift as any).purchasedCount || 0) >= 2 || isEsgotado(gift.name) ? (
                         <button 
                           disabled
                           className="mt-auto block w-3/4 py-2 bg-slate-300 text-white text-sm font-medium rounded-sm shadow-sm cursor-not-allowed">
-                          Já Presenteado
+                          {isEsgotado(gift.name) ? 'Esgotado' : 'Já Presenteado'}
                         </button>
                       ) : (
                         <div className="mt-auto w-full flex flex-col items-center gap-2">
@@ -831,8 +869,8 @@ function PagamentoPix() {
   }
 
   const handleConfirmPurchase = async () => {
-    if (((gift as any).purchasedCount || 0) >= 2) {
-      alert("Este presente já foi presenteado o limite de vezes!");
+    if (((gift as any).purchasedCount || 0) >= 2 || isEsgotado(gift.name)) {
+      alert("Este presente já foi esgotado ou presenteado o limite de vezes!");
       return navigate('/presentes');
     }
     
