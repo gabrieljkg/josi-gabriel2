@@ -36,6 +36,13 @@ const isEsgotado = (name: string): boolean => {
     'portes de vidro',
     'potes para mantimentos',
     'jogo de banho',
+    'jogo de banho especial barrado',
+    'jogo de banho especial',
+    'banho especial barrado',
+    'jogo banho luxo especial barrado bordado richilieu 5 pecas',
+    'luxo especial barrado',
+    'richilieu',
+    'bordado richilieu',
     'panela eletrica de arroz',
     'panela eletrica',
     'panela de arroz'
