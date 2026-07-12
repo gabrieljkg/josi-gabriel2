@@ -35,7 +35,10 @@ const isEsgotado = (name: string): boolean => {
     'potes de vidro',
     'portes de vidro',
     'potes para mantimentos',
-    'jogo de banho'
+    'jogo de banho',
+    'panela eletrica de arroz',
+    'panela eletrica',
+    'panela de arroz'
   ];
   return esgotados.some(item => norm.includes(item) || item.includes(norm));
 };
