@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, NavLink, useNavigate, Outlet, useLocation, Link } from 'react-router-dom';
+import { Routes, Route, NavLink, useNavigate, Outlet, useLocation, Link, Navigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Heart, Calendar, Camera, MessageCircle, CheckCircle, Gift, Lock, LogOut, Menu, X, Upload, Trash2, Download } from 'lucide-react';
+import { Heart, Calendar, Camera, MessageCircle, CheckCircle, Gift, Lock, LogOut, Menu, X, Upload, Trash2, Download, Video } from 'lucide-react';
 import { auth, db, storage } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, deleteDoc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
@@ -392,29 +392,51 @@ function Casamento() {
 
 function Album() {
   const [galleryImages, setGalleryImages] = useState<Record<number, string>>({});
+  const [galleryVideos, setGalleryVideos] = useState<Record<number, string>>({});
   const [user, setUser] = useState<User | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, setUser);
     const unsub = onSnapshot(doc(db, 'site_images', 'galeria'), (docSnap) => {
-      if (docSnap.exists() && docSnap.data().images) {
-        setGalleryImages(docSnap.data().images);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.images) setGalleryImages(data.images);
+        if (data.videos) setGalleryVideos(data.videos);
       }
     });
-    return () => unsub();
+    return () => {
+      unsubAuth();
+      unsub();
+    };
   }, []);
 
-  const handleUpload = async (pos: number, file: File) => {
+  const handleMediaUpload = async (pos: number, file: File, type: 'image' | 'video') => {
     try {
       if (!auth.currentUser) {
         await signInWithPopup(auth, new GoogleAuthProvider());
       }
-      const base64 = await compressImage(file);
+      setIsUploading(true);
+      
+      const fileExtension = file.name.split('.').pop();
+      const storageRef = ref(storage, `gallery/${type}_${pos}_${Date.now()}.${fileExtension}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+
       const currentDoc = await getDoc(doc(db, 'site_images', 'galeria'));
-      const images = currentDoc.exists() ? currentDoc.data().images || {} : {};
-      images[pos] = base64;
-      await setDoc(doc(db, 'site_images', 'galeria'), { images });
-      alert(`Momento ${pos} atualizado com sucesso!`);
+      const data = currentDoc.exists() ? currentDoc.data() : {};
+      
+      if (type === 'image') {
+        const images = data.images || {};
+        images[pos] = url;
+        await setDoc(doc(db, 'site_images', 'galeria'), { ...data, images }, { merge: true });
+      } else {
+        const videos = data.videos || {};
+        videos[pos] = url;
+        await setDoc(doc(db, 'site_images', 'galeria'), { ...data, videos }, { merge: true });
+      }
+      
+      alert(`Mídia ${pos} adicionada com sucesso!`);
     } catch (err: any) {
       console.error(err);
       if (err.code === 'permission-denied') {
@@ -422,7 +444,112 @@ function Album() {
       } else {
         alert('Erro ao atualizar. Tente novamente.');
       }
+    } finally {
+      setIsUploading(false);
     }
+  };
+
+  const renderImageSlots = () => {
+    const slots = [];
+    for (let i = 1; i <= 40; i++) {
+      slots.push(
+        <div key={`img-${i}`} className="aspect-square bg-white p-2 md:p-3 shadow-md rounded-[1rem] transform odd:rotate-1 even:-rotate-1 hover:rotate-0 transition-all duration-300 border border-slate-50 group relative">
+          <div className="w-full h-full bg-blue-50/50 flex items-center justify-center overflow-hidden relative rounded-lg">
+            <img 
+              src={galleryImages[i] || `/foto-galeria-${i}.jpg`} 
+              alt={`Momento ${i}`} 
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                if (e.currentTarget.nextElementSibling) {
+                  e.currentTarget.nextElementSibling.classList.remove('hidden');
+                }
+              }}
+            />
+            <div className="text-center p-4 absolute inset-0 flex flex-col items-center justify-center hidden bg-blue-50/50">
+              <Camera className="w-8 h-8 text-blue-200 mx-auto mb-2" />
+              <span className="text-blue-300 font-light italic text-sm mt-1">Vazio</span>
+            </div>
+          </div>
+          
+          <label className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] cursor-pointer ${isUploading ? 'pointer-events-none' : ''}`}>
+            <Upload className="w-8 h-8 text-white mb-2" />
+            <span className="text-white text-xs font-medium px-2 text-center">Adicionar Foto</span>
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleMediaUpload(i, e.target.files[0], 'image');
+                }
+              }} 
+              className="hidden" 
+              disabled={isUploading}
+            />
+          </label>
+        </div>
+      );
+    }
+    return slots;
+  };
+
+  const renderVideoSlots = () => {
+    const slots = [];
+    for (let i = 1; i <= 3; i++) {
+      slots.push(
+        <div key={`vid-${i}`} className="aspect-video bg-white p-2 md:p-3 shadow-md rounded-[1rem] transform hover:scale-[1.02] transition-all duration-300 border border-slate-50 group relative">
+          <div className="w-full h-full bg-blue-50/50 flex items-center justify-center overflow-hidden relative rounded-lg">
+            {galleryVideos[i] ? (
+              <video 
+                src={galleryVideos[i]} 
+                controls 
+                className="w-full h-full object-cover rounded-lg"
+              />
+            ) : (
+              <div className="text-center p-4 flex flex-col items-center justify-center">
+                <Video className="w-8 h-8 text-blue-200 mx-auto mb-2" />
+                <span className="text-blue-300 font-light italic text-sm mt-1">Nenhum vídeo</span>
+              </div>
+            )}
+          </div>
+          
+          <label className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 ${galleryVideos[i] ? 'group-hover:opacity-0' : 'group-hover:opacity-100'} transition-opacity rounded-[1rem] cursor-pointer ${isUploading ? 'pointer-events-none' : ''}`}>
+            <Upload className="w-8 h-8 text-white mb-2" />
+            <span className="text-white text-xs font-medium px-2 text-center">Adicionar Vídeo</span>
+            <input 
+              type="file" 
+              accept="video/*" 
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleMediaUpload(i, e.target.files[0], 'video');
+                }
+              }} 
+              className="hidden" 
+              disabled={isUploading}
+            />
+          </label>
+          
+          {/* Allow changing video if it exists via a small button */}
+          {galleryVideos[i] && (
+            <label className={`absolute top-4 right-4 z-20 flex flex-col items-center justify-center bg-black/60 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-lg ${isUploading ? 'pointer-events-none' : ''}`}>
+              <Upload className="w-4 h-4 text-white" />
+              <input 
+                type="file" 
+                accept="video/*" 
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleMediaUpload(i, e.target.files[0], 'video');
+                  }
+                }} 
+                className="hidden" 
+                disabled={isUploading}
+              />
+            </label>
+          )}
+        </div>
+      );
+    }
+    return slots;
   };
 
   return (
@@ -430,44 +557,31 @@ function Album() {
       <div className="space-y-4">
         <Camera className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
         <h2 className="text-4xl md:text-5xl font-script text-[#ce9b2c]">Nossos Momentos</h2>
+        <p className="text-slate-500 max-w-lg mx-auto font-light">
+          {isUploading ? "Enviando arquivo, aguarde..." : "Clique nos espaços vazios para adicionar fotos ou vídeos desse dia especial!"}
+        </p>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="aspect-square bg-white p-2 md:p-3 shadow-md rounded-[1rem] transform odd:rotate-1 even:-rotate-1 hover:rotate-0 transition-all duration-300 border border-slate-50 group relative">
-            <div className="w-full h-full bg-blue-50/50 flex items-center justify-center overflow-hidden relative rounded-lg">
-              <img 
-                src={galleryImages[i] || `/foto-galeria-${i}.jpg`} 
-                alt={`Momento ${i}`} 
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  if (e.currentTarget.nextElementSibling) {
-                    e.currentTarget.nextElementSibling.classList.remove('hidden');
-                  }
-                }}
-              />
-              <div className="text-center p-4 absolute inset-0 flex flex-col items-center justify-center hidden bg-blue-50/50">
-                <Camera className="w-8 h-8 text-blue-200 mx-auto mb-2" />
-                <span className="text-blue-300 font-light italic text-sm mt-1">Vazio</span>
-              </div>
-            </div>
-            
-            <label className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] cursor-pointer">
-              <Upload className="w-8 h-8 text-white mb-2" />
-              <span className="text-white text-xs font-medium px-2 text-center">Adicionar Foto</span>
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleUpload(i, e.target.files[0]);
-                  }
-                }} 
-                className="hidden" 
-              />
-            </label>
+
+      <div className="space-y-10">
+        <div className="space-y-4">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <Camera className="w-5 h-5 text-blue-400" />
+            <h3 className="text-xl font-medium text-slate-700">Fotos</h3>
           </div>
-        ))}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {renderImageSlots()}
+          </div>
+        </div>
+
+        <div className="space-y-4 pt-8 border-t border-blue-100">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <Video className="w-5 h-5 text-blue-400" />
+            <h3 className="text-xl font-medium text-slate-700">Vídeos</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {renderVideoSlots()}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1454,34 +1568,8 @@ function AdminPanel() {
             </div>
 
             <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
-              <h3 className="text-sm font-medium text-slate-700 mb-2">Fotos "Nossos Momentos"</h3>
-              <p className="text-xs text-slate-500 mb-4">Adicione até 6 fotos para a galeria do site.</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {[1, 2, 3, 4, 5, 6].map(pos => (
-                  <div key={pos} className="border border-slate-200 bg-white p-3 rounded-lg flex flex-col items-center text-center gap-2">
-                    <span className="text-xs font-medium text-slate-500">Espaço {pos}</span>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={async (e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          try {
-                            const base64 = await compressImage(e.target.files[0]);
-                            const currentDoc = await getDoc(doc(db, 'site_images', 'galeria'));
-                            const images = currentDoc.exists() ? currentDoc.data().images || {} : {};
-                            images[pos] = base64;
-                            await setDoc(doc(db, 'site_images', 'galeria'), { images });
-                            alert(`Foto da galeria (espaço ${pos}) atualizada!`);
-                          } catch(err) {
-                            alert('Erro ao atualizar foto. Tente uma foto menor.');
-                          }
-                        }
-                      }}
-                      className="w-full text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
-                ))}
-              </div>
+              <h3 className="text-sm font-medium text-slate-700 mb-2">Fotos e Vídeos "Nossos Momentos"</h3>
+              <p className="text-xs text-slate-500 mb-4">Gerencie e adicione os 40 espaços de fotos e 3 vídeos diretamente acessando a aba "Álbum" no site.</p>
             </div>
           </div>
         </section>
@@ -1615,12 +1703,14 @@ export default function App() {
         <Route path="sobre" element={<Historia />} />
         <Route path="casamento" element={<Casamento />} />
         <Route path="album" element={<Album />} />
+        <Route path="fotos" element={<Navigate to="/album" replace />} />
         <Route path="recados" element={<Recados />} />
         <Route path="confirmacao" element={<Confirmacao />} />
         <Route path="presentes" element={<Presentes />} />
         <Route path="pagamento-pix" element={<PagamentoPix />} />
       </Route>
       <Route path="/admin" element={<AdminPanel />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
