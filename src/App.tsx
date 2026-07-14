@@ -54,7 +54,7 @@ const navLinks = [
   { name: 'Home', href: '/' },
   { name: 'História', href: '/sobre' },
   { name: 'O Evento', href: '/casamento' },
-  { name: 'Fotos', href: '/fotos' },
+  { name: 'Álbum', href: '/album' },
   { name: 'Recados', href: '/recados' },
   { name: 'Confirmar Presença', href: '/confirmacao' },
   { name: 'Presentes', href: '/presentes' },
@@ -390,7 +390,7 @@ function Casamento() {
   );
 }
 
-function Fotos() {
+function Album() {
   const [galleryImages, setGalleryImages] = useState<Record<number, string>>({});
   const [user, setUser] = useState<User | null>(null);
 
@@ -418,7 +418,7 @@ function Fotos() {
     } catch (err: any) {
       console.error(err);
       if (err.code === 'permission-denied') {
-        alert('Apenas o administrador (gabrielcalid@gmail.com) pode mudar a foto.');
+        alert('Você não tem permissão para adicionar fotos. Faça login primeiro.');
       } else {
         alert('Erro ao atualizar. Tente novamente.');
       }
@@ -452,22 +452,20 @@ function Fotos() {
               </div>
             </div>
             
-            {(user?.email === 'gabrielcalid@gmail.com' || user?.email === 'josi.bio21@gmail.com') && (
-              <label className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] cursor-pointer">
-                <Upload className="w-8 h-8 text-white mb-2" />
-                <span className="text-white text-xs font-medium px-2 text-center">Alterar Foto</span>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleUpload(i, e.target.files[0]);
-                    }
-                  }} 
-                  className="hidden" 
-                />
-              </label>
-            )}
+            <label className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] cursor-pointer">
+              <Upload className="w-8 h-8 text-white mb-2" />
+              <span className="text-white text-xs font-medium px-2 text-center">Adicionar Foto</span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleUpload(i, e.target.files[0]);
+                  }
+                }} 
+                className="hidden" 
+              />
+            </label>
           </div>
         ))}
       </div>
@@ -1616,7 +1614,7 @@ export default function App() {
         <Route index element={<Inicio />} />
         <Route path="sobre" element={<Historia />} />
         <Route path="casamento" element={<Casamento />} />
-        <Route path="fotos" element={<Fotos />} />
+        <Route path="album" element={<Album />} />
         <Route path="recados" element={<Recados />} />
         <Route path="confirmacao" element={<Confirmacao />} />
         <Route path="presentes" element={<Presentes />} />
