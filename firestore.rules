@@ -91,7 +91,7 @@ service cloud.firestore {
 
     match /site_images/{imageId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || (imageId == 'galeria' && request.auth != null);
     }
   }
 }
