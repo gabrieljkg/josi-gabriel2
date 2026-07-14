@@ -266,7 +266,7 @@ function Historia() {
   );
 }
 
-const compressImage = (file: File): Promise<string> => {
+const compressImage = (file: File, maxWidth = 800, maxHeight = 800): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -275,20 +275,18 @@ const compressImage = (file: File): Promise<string> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
         let width = img.width;
         let height = img.height;
 
         if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
           }
         } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
+          if (height > maxHeight) {
+            width *= maxHeight / height;
+            height = maxHeight;
           }
         }
         canvas.width = width;
@@ -390,6 +388,24 @@ function Casamento() {
   );
 }
 
+const VideoEmbed = ({ url }: { url: string }) => {
+  let embedUrl = url;
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    const videoId = url.split('v=')[1]?.split('&')[0] || url.split('youtu.be/')[1]?.split('?')[0];
+    embedUrl = `https://www.youtube.com/embed/${videoId}`;
+    return <iframe src={embedUrl} className="w-full h-full object-cover rounded-lg" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />;
+  }
+  
+  if (url.includes('vimeo.com')) {
+    const videoId = url.split('vimeo.com/')[1]?.split('?')[0];
+    embedUrl = `https://player.vimeo.com/video/${videoId}`;
+    return <iframe src={embedUrl} className="w-full h-full object-cover rounded-lg" allowFullScreen allow="autoplay; fullscreen; picture-in-picture" />;
+  }
+
+  // Fallback for direct MP4 or other video formats
+  return <video src={url} controls className="w-full h-full object-cover rounded-lg" />;
+};
+
 function Album() {
   const [galleryImages, setGalleryImages] = useState<Record<number, string>>({});
   const [galleryVideos, setGalleryVideos] = useState<Record<number, string>>({});
@@ -411,38 +427,59 @@ function Album() {
     };
   }, []);
 
-  const handleMediaUpload = async (pos: number, file: File, type: 'image' | 'video') => {
+  const handleImageUpload = async (pos: number, file: File) => {
     try {
       if (!auth.currentUser) {
         await signInWithPopup(auth, new GoogleAuthProvider());
       }
       setIsUploading(true);
       
-      const fileExtension = file.name.split('.').pop();
-      const storageRef = ref(storage, `gallery/${type}_${pos}_${Date.now()}.${fileExtension}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const base64 = await compressImage(file, 400, 400);
 
       const currentDoc = await getDoc(doc(db, 'site_images', 'galeria'));
       const data = currentDoc.exists() ? currentDoc.data() : {};
       
-      if (type === 'image') {
-        const images = data.images || {};
-        images[pos] = url;
-        await setDoc(doc(db, 'site_images', 'galeria'), { ...data, images }, { merge: true });
-      } else {
-        const videos = data.videos || {};
-        videos[pos] = url;
-        await setDoc(doc(db, 'site_images', 'galeria'), { ...data, videos }, { merge: true });
-      }
+      const images = data.images || {};
+      images[pos] = base64;
+      await setDoc(doc(db, 'site_images', 'galeria'), { ...data, images }, { merge: true });
       
-      alert(`Mídia ${pos} adicionada com sucesso!`);
+      alert(`Foto ${pos} adicionada com sucesso!`);
     } catch (err: any) {
       console.error(err);
       if (err.code === 'permission-denied') {
         alert('Você não tem permissão para adicionar fotos. Faça login primeiro.');
       } else {
-        alert('Erro ao atualizar. Tente novamente.');
+        alert(`Erro ao atualizar foto. Detalhes: ${err.message}`);
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleVideoLink = async (pos: number) => {
+    const url = window.prompt('Cole aqui o link do vídeo (YouTube, Google Drive, Instagram, etc):');
+    if (!url) return;
+
+    try {
+      if (!auth.currentUser) {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+      }
+      setIsUploading(true);
+      
+      const currentDoc = await getDoc(doc(db, 'site_images', 'galeria'));
+      const data = currentDoc.exists() ? currentDoc.data() : {};
+      
+      const videos = data.videos || {};
+      videos[pos] = url;
+      await setDoc(doc(db, 'site_images', 'galeria'), { ...data, videos }, { merge: true });
+      
+      alert(`Vídeo ${pos} adicionado com sucesso!`);
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'permission-denied') {
+        alert('Você não tem permissão para adicionar vídeos. Faça login primeiro.');
+      } else {
+        alert(`Erro ao atualizar vídeo. Detalhes: ${err.message}`);
       }
     } finally {
       setIsUploading(false);
@@ -513,7 +550,7 @@ function Album() {
               accept="image/*" 
               onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
-                  handleMediaUpload(i, e.target.files[0], 'image');
+                  handleImageUpload(i, e.target.files[0]);
                 }
               }} 
               className="hidden" 
@@ -530,7 +567,7 @@ function Album() {
                   accept="image/*" 
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
-                      handleMediaUpload(i, e.target.files[0], 'image');
+                      handleImageUpload(i, e.target.files[0]);
                     }
                   }} 
                   className="hidden" 
@@ -562,11 +599,7 @@ function Album() {
         <div key={`vid-${i}`} className="aspect-video bg-white p-2 md:p-3 shadow-md rounded-[1rem] transform hover:scale-[1.02] transition-all duration-300 border border-slate-50 group relative">
           <div className="w-full h-full bg-blue-50/50 flex items-center justify-center overflow-hidden relative rounded-lg">
             {galleryVideos[i] ? (
-              <video 
-                src={galleryVideos[i]} 
-                controls 
-                className="w-full h-full object-cover rounded-lg"
-              />
+              <VideoEmbed url={galleryVideos[i]} />
             ) : (
               <div className="text-center p-4 flex flex-col items-center justify-center">
                 <Video className="w-8 h-8 text-blue-200 mx-auto mb-2" />
@@ -575,39 +608,25 @@ function Album() {
             )}
           </div>
           
-          <label className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 ${galleryVideos[i] ? 'group-hover:opacity-0' : 'group-hover:opacity-100'} transition-opacity rounded-[1rem] cursor-pointer ${isUploading ? 'pointer-events-none' : ''}`}>
+          <button
+            onClick={() => handleVideoLink(i)}
+            disabled={isUploading}
+            className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 ${galleryVideos[i] ? 'group-hover:opacity-0' : 'group-hover:opacity-100'} transition-opacity rounded-[1rem] cursor-pointer ${isUploading ? 'pointer-events-none' : ''}`}
+          >
             <Upload className="w-8 h-8 text-white mb-2" />
-            <span className="text-white text-xs font-medium px-2 text-center">Adicionar Vídeo</span>
-            <input 
-              type="file" 
-              accept="video/*" 
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  handleMediaUpload(i, e.target.files[0], 'video');
-                }
-              }} 
-              className="hidden" 
-              disabled={isUploading}
-            />
-          </label>
+            <span className="text-white text-xs font-medium px-2 text-center">Adicionar Link de Vídeo</span>
+          </button>
           
           {/* Allow changing or deleting video if it exists via small buttons */}
           {galleryVideos[i] && (
             <div className="absolute top-2 right-2 z-20 flex gap-2 transition-opacity">
-              <label className={`flex flex-col items-center justify-center bg-black/60 p-2 rounded-full cursor-pointer shadow-lg hover:bg-black/80 ${isUploading ? 'pointer-events-none' : ''}`}>
+              <button
+                onClick={() => handleVideoLink(i)}
+                disabled={isUploading}
+                className={`flex flex-col items-center justify-center bg-black/60 p-2 rounded-full cursor-pointer shadow-lg hover:bg-black/80 ${isUploading ? 'pointer-events-none' : ''}`}
+              >
                 <Upload className="w-4 h-4 text-white" />
-                <input 
-                  type="file" 
-                  accept="video/*" 
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleMediaUpload(i, e.target.files[0], 'video');
-                    }
-                  }} 
-                  className="hidden" 
-                  disabled={isUploading}
-                />
-              </label>
+              </button>
               <button
                 onClick={(e) => {
                   e.preventDefault();
