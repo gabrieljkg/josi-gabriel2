@@ -449,6 +449,39 @@ function Album() {
     }
   };
 
+  const handleDeleteMedia = async (pos: number, type: 'image' | 'video') => {
+    try {
+      if (!auth.currentUser) {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+      }
+      setIsUploading(true);
+
+      const currentDoc = await getDoc(doc(db, 'site_images', 'galeria'));
+      const data = currentDoc.exists() ? currentDoc.data() : {};
+      
+      if (type === 'image') {
+        const images = data.images || {};
+        delete images[pos];
+        await setDoc(doc(db, 'site_images', 'galeria'), { ...data, images });
+      } else {
+        const videos = data.videos || {};
+        delete videos[pos];
+        await setDoc(doc(db, 'site_images', 'galeria'), { ...data, videos });
+      }
+      
+      alert(`Mídia removida com sucesso!`);
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'permission-denied') {
+        alert('Você não tem permissão para excluir. Faça login primeiro.');
+      } else {
+        alert('Erro ao excluir. Tente novamente.');
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const renderImageSlots = () => {
     const slots = [];
     for (let i = 1; i <= 40; i++) {
@@ -472,7 +505,7 @@ function Album() {
             </div>
           </div>
           
-          <label className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] cursor-pointer ${isUploading ? 'pointer-events-none' : ''}`}>
+          <label className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 ${galleryImages[i] ? 'group-hover:opacity-0' : 'group-hover:opacity-100'} transition-opacity rounded-[1rem] cursor-pointer ${isUploading ? 'pointer-events-none' : ''}`}>
             <Upload className="w-8 h-8 text-white mb-2" />
             <span className="text-white text-xs font-medium px-2 text-center">Adicionar Foto</span>
             <input 
@@ -487,6 +520,35 @@ function Album() {
               disabled={isUploading}
             />
           </label>
+
+          {galleryImages[i] && (
+            <div className="absolute top-2 right-2 z-20 flex gap-2 transition-opacity">
+              <label className={`flex flex-col items-center justify-center bg-black/60 p-2 rounded-full cursor-pointer shadow-lg hover:bg-black/80 ${isUploading ? 'pointer-events-none' : ''}`}>
+                <Upload className="w-4 h-4 text-white" />
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleMediaUpload(i, e.target.files[0], 'image');
+                    }
+                  }} 
+                  className="hidden" 
+                  disabled={isUploading}
+                />
+              </label>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if(window.confirm('Deseja excluir esta foto?')) handleDeleteMedia(i, 'image');
+                }}
+                className={`bg-red-500/80 p-2 rounded-full cursor-pointer shadow-lg text-white hover:bg-red-600 ${isUploading ? 'pointer-events-none' : ''}`}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       );
     }
@@ -529,22 +591,34 @@ function Album() {
             />
           </label>
           
-          {/* Allow changing video if it exists via a small button */}
+          {/* Allow changing or deleting video if it exists via small buttons */}
           {galleryVideos[i] && (
-            <label className={`absolute top-4 right-4 z-20 flex flex-col items-center justify-center bg-black/60 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-lg ${isUploading ? 'pointer-events-none' : ''}`}>
-              <Upload className="w-4 h-4 text-white" />
-              <input 
-                type="file" 
-                accept="video/*" 
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleMediaUpload(i, e.target.files[0], 'video');
-                  }
-                }} 
-                className="hidden" 
-                disabled={isUploading}
-              />
-            </label>
+            <div className="absolute top-2 right-2 z-20 flex gap-2 transition-opacity">
+              <label className={`flex flex-col items-center justify-center bg-black/60 p-2 rounded-full cursor-pointer shadow-lg hover:bg-black/80 ${isUploading ? 'pointer-events-none' : ''}`}>
+                <Upload className="w-4 h-4 text-white" />
+                <input 
+                  type="file" 
+                  accept="video/*" 
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleMediaUpload(i, e.target.files[0], 'video');
+                    }
+                  }} 
+                  className="hidden" 
+                  disabled={isUploading}
+                />
+              </label>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if(window.confirm('Deseja excluir este vídeo?')) handleDeleteMedia(i, 'video');
+                }}
+                className={`bg-red-500/80 p-2 rounded-full cursor-pointer shadow-lg text-white hover:bg-red-600 ${isUploading ? 'pointer-events-none' : ''}`}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           )}
         </div>
       );
