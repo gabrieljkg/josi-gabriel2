@@ -429,9 +429,6 @@ function Album() {
 
   const handleImageUpload = async (pos: number, file: File) => {
     try {
-      if (!auth.currentUser) {
-        await signInWithPopup(auth, new GoogleAuthProvider());
-      }
       setIsUploading(true);
       
       const base64 = await compressImage(file, 400, 400);
@@ -461,9 +458,6 @@ function Album() {
     if (!url) return;
 
     try {
-      if (!auth.currentUser) {
-        await signInWithPopup(auth, new GoogleAuthProvider());
-      }
       setIsUploading(true);
       
       const currentDoc = await getDoc(doc(db, 'site_images', 'galeria'));
@@ -488,9 +482,6 @@ function Album() {
 
   const handleDeleteMedia = async (pos: number, type: 'image' | 'video') => {
     try {
-      if (!auth.currentUser) {
-        await signInWithPopup(auth, new GoogleAuthProvider());
-      }
       setIsUploading(true);
 
       const currentDoc = await getDoc(doc(db, 'site_images', 'galeria'));
