@@ -7,6 +7,7 @@ import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User 
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, deleteDoc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { handleFirestoreError, OperationType } from './lib/firebaseUtils';
+import { supabase } from './supabase';
 
 const pixPhone = "63992613726";
 
@@ -151,7 +152,7 @@ function SharedLayout() {
 }
 
 function Countdown() {
-  const targetDate = new Date('2026-08-13T18:30:00').getTime();
+  const targetDate = new Date('2026-08-13T19:30:00').getTime();
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
     hours: number;
@@ -345,7 +346,7 @@ function Casamento() {
         <div className="space-y-6">
           <div className="space-y-2">
             <h3 className="text-blue-900 font-medium uppercase tracking-widest text-xs">Data e Horário</h3>
-            <p className="text-xl text-slate-700 font-light">13 de Agosto de 2026 às 18:30h</p>
+            <p className="text-xl text-slate-700 font-light">13 de Agosto de 2026 às 19:30h</p>
           </div>
           <div className="space-y-2">
             <h3 className="text-blue-900 font-medium uppercase tracking-widest text-xs">Local</h3>
@@ -431,13 +432,33 @@ function Album() {
     try {
       setIsUploading(true);
       
-      const base64 = await compressImage(file, 400, 400);
+      const compressedBase64 = await compressImage(file, 400, 400);
+      const response = await fetch(compressedBase64);
+      const blob = await response.blob();
+      
+      const fileExtension = file.name.split('.').pop() || 'jpg';
+      const fileName = `image_${pos}_${Date.now()}.${fileExtension}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('album')
+        .upload(fileName, blob, {
+          contentType: file.type,
+          upsert: true
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('album')
+        .getPublicUrl(fileName);
 
       const currentDoc = await getDoc(doc(db, 'site_images', 'galeria'));
       const data = currentDoc.exists() ? currentDoc.data() : {};
       
       const images = data.images || {};
-      images[pos] = base64;
+      images[pos] = publicUrl;
       await setDoc(doc(db, 'site_images', 'galeria'), { ...data, images }, { merge: true });
       
       alert(`Foto ${pos} adicionada com sucesso!`);
