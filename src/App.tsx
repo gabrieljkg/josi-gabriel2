@@ -11,31 +11,74 @@ import { supabase } from './supabase';
 
 const pixPhone = "63992613726";
 
-const isEsgotado = (name: string): boolean => {
+const isEsgotado = (name: string, giftObj?: any): boolean => {
+  if (giftObj && (giftObj.esgotado === true || giftObj.isEsgotado === true || giftObj.status === 'esgotado')) {
+    return true;
+  }
   if (!name) return false;
-  const norm = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const norm = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  // Direct comprehensive keyword matches
+  if (
+    norm.includes('jantar') ||
+    norm.includes('fritadeira') ||
+    norm.includes('airfryer') ||
+    norm.includes('air fryer') ||
+    norm.includes('air-fryer') ||
+    norm.includes('louca') ||
+    (norm.includes('prato') && norm.includes('copo')) ||
+    norm.includes('pratos e copos') ||
+    norm.includes('pratos') ||
+    norm.includes('copos') ||
+    norm.includes('24 pecas') ||
+    norm.includes('24 pelas') ||
+    norm.includes('pressao') ||
+    norm.includes('sanduicheira') ||
+    norm.includes('talher') ||
+    norm.includes('liquidificador') ||
+    norm.includes('tabua') ||
+    norm.includes('lixeira') ||
+    norm.includes('assadeira') ||
+    norm.includes('travesseiro') ||
+    norm.includes('lencol') ||
+    norm.includes('pote') ||
+    norm.includes('porte') ||
+    norm.includes('banho') ||
+    norm.includes('richilieu') ||
+    norm.includes('panela eletrica') ||
+    norm.includes('panela de arroz')
+  ) {
+    return true;
+  }
+
   const esgotados = [
     'panela de pressao',
     'sanduicheira',
     'jogo de talheres',
     'jogo de talheires',
+    'talheres',
     'liquidificador',
     'jogo da tabuas de corte',
     'jogo de tabuas de corte',
     'tabua de corte',
+    'tabuas de corte',
+    'tabua',
     'lixeira',
     'conjunto de 3 assadeiras',
     'assadeiras',
+    'assadeira',
     'travesseiro nasa',
     'travesseiro',
     'jogo de lencol queen 4 pecas',
     'jogo de lencol queen',
     'lencol queen',
+    'lencol',
     'portes de vidro p/mantimentos',
     'potes de vidro p/mantimentos',
     'potes de vidro',
     'portes de vidro',
     'potes para mantimentos',
+    'potes',
     'jogo de banho',
     'jogo de banho especial barrado',
     'jogo de banho especial',
@@ -46,7 +89,28 @@ const isEsgotado = (name: string): boolean => {
     'bordado richilieu',
     'panela eletrica de arroz',
     'panela eletrica',
-    'panela de arroz'
+    'panela de arroz',
+    'jogo de jantar branco 24 pecas',
+    'jogo de jantar branco 24 pelas',
+    'jogo de jantar branco',
+    'jogo de jantar',
+    'jantar branco',
+    'jantar',
+    'louca de pratos e copos barato',
+    'louca de pratos e copos',
+    'pratos e copos barato',
+    'pratos e copos',
+    'louca de pratos',
+    'louca de copos',
+    'louca',
+    'pratos',
+    'copos',
+    'fritadeira a ar',
+    'fritadeira',
+    'fritadeira eletrica',
+    'fritadeira sem oleo',
+    'air fryer',
+    'airfryer'
   ];
   return esgotados.some(item => norm.includes(item) || item.includes(norm));
 };
@@ -996,7 +1060,7 @@ function Presentes() {
                       <Gift className="w-10 h-10 text-slate-300" />
                     </div>
                   )}
-                  {isEsgotado(gift.name) && (
+                  {isEsgotado(gift.name, gift) && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
                       <span className="bg-red-600 text-white text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-sm shadow-md">
                         Esgotado
@@ -1029,11 +1093,11 @@ function Presentes() {
                         <span className="text-4xl font-light">{intPart}</span>
                         <span className="text-sm font-medium">,{decPart}</span>
                       </div>
-                      {((gift as any).purchasedCount || 0) >= 2 || isEsgotado(gift.name) ? (
+                      {((gift as any).purchasedCount || 0) >= 2 || isEsgotado(gift.name, gift) ? (
                         <button 
                           disabled
                           className="mt-auto block w-3/4 py-2 bg-slate-300 text-white text-sm font-medium rounded-sm shadow-sm cursor-not-allowed">
-                          {isEsgotado(gift.name) ? 'Esgotado' : 'Já Presenteado'}
+                          {isEsgotado(gift.name, gift) ? 'Esgotado' : 'Já Presenteado'}
                         </button>
                       ) : (
                         <div className="mt-auto w-full flex flex-col items-center gap-2">
@@ -1096,7 +1160,7 @@ function PagamentoPix() {
   }
 
   const handleConfirmPurchase = async () => {
-    if (((gift as any).purchasedCount || 0) >= 2 || isEsgotado(gift.name)) {
+    if (((gift as any).purchasedCount || 0) >= 2 || isEsgotado(gift.name, gift)) {
       alert("Este presente já foi esgotado ou presenteado o limite de vezes!");
       return navigate('/presentes');
     }
@@ -1400,6 +1464,20 @@ function AdminPanel() {
       setDeletingId(null);
     }
   }
+
+  const handleToggleEsgotado = async (gift: any) => {
+    try {
+      const giftRef = doc(db, 'gifts', gift.id);
+      const currentlyEsgotado = isEsgotado(gift.name, gift);
+      await updateDoc(giftRef, {
+        esgotado: !currentlyEsgotado
+      });
+      alert(currentlyEsgotado ? 'Presente marcado como DISPONÍVEL!' : 'Presente marcado como ESGOTADO!');
+    } catch (err: any) {
+      console.error('Erro ao alterar status de esgotado:', err);
+      alert('Erro ao alterar status: ' + err.message);
+    }
+  };
 
   const handleEditGift = (gift: any) => {
     setEditingGiftId(gift.id);
@@ -1760,7 +1838,14 @@ function AdminPanel() {
                         </div>
                       )}
                       <div>
-                        <p className="font-semibold text-slate-800">{gift.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-slate-800">{gift.name}</p>
+                          {isEsgotado(gift.name, gift) && (
+                            <span className="text-[10px] bg-red-100 text-red-700 font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+                              Esgotado
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-blue-600 font-medium">R$ {gift.value.toFixed(2)}</p>
                         {gift.mercadoPagoLink && (
                           <div className="flex items-center gap-1 mt-1">
@@ -1771,6 +1856,17 @@ function AdminPanel() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleToggleEsgotado(gift)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                          isEsgotado(gift.name, gift) 
+                            ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' 
+                            : 'bg-red-50 text-red-600 hover:bg-red-100'
+                        }`}
+                        title="Alternar status de esgotado"
+                      >
+                        {isEsgotado(gift.name, gift) ? 'Disponível' : 'Esgotar'}
+                      </button>
                       <button 
                         onClick={() => handleEditGift(gift)}
                         className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg text-sm font-medium transition-colors cursor-pointer"
