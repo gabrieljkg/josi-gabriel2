@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, useNavigate, Outlet, useLocation, Link, Navigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Heart, Calendar, Camera, MessageCircle, CheckCircle, Gift, Lock, LogOut, Menu, X, Upload, Trash2, Download, Video } from 'lucide-react';
+import { Heart, Calendar, Camera, MessageCircle, CheckCircle, Gift, Lock, LogOut, Menu, X, Upload, Trash2, Download, Video, Loader2, Images } from 'lucide-react';
 import { auth, db, storage } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, deleteDoc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
@@ -476,6 +476,8 @@ function Album() {
   const [galleryVideos, setGalleryVideos] = useState<Record<number, string>>({});
   const [user, setUser] = useState<User | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [deletingMedia, setDeletingMedia] = useState<{ pos: number; type: 'image' | 'video' } | null>(null);
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, setUser);
@@ -492,49 +494,101 @@ function Album() {
     };
   }, []);
 
-  const handleImageUpload = async (pos: number, file: File) => {
+  const handleMultipleImageUpload = async (filesList: FileList | File[], preferredPos?: number) => {
+    const rawFiles = Array.from(filesList);
+    if (rawFiles.length === 0) return;
+
+    // Limit to up to 5 photos per upload
+    const selectedFiles = rawFiles.slice(0, 5);
+    if (rawFiles.length > 5) {
+      alert("Você selecionou mais de 5 fotos. Iremos enviar as 5 primeiras selecionadas.");
+    }
+
     try {
       setIsUploading(true);
-      
-      const compressedBase64 = await compressImage(file, 400, 400);
-      const response = await fetch(compressedBase64);
-      const blob = await response.blob();
-      
-      const fileExtension = file.name.split('.').pop() || 'jpg';
-      const fileName = `image_${pos}_${Date.now()}.${fileExtension}`;
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('album')
-        .upload(fileName, blob, {
-          contentType: file.type,
-          upsert: true
-        });
+      setUploadStatus(`Preparando ${selectedFiles.length} foto(s)...`);
 
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('album')
-        .getPublicUrl(fileName);
-
+      // 1. Fetch current gallery data to ensure we NEVER overwrite saved photos
       const currentDoc = await getDoc(doc(db, 'site_images', 'galeria'));
       const data = currentDoc.exists() ? currentDoc.data() : {};
-      
-      const images = data.images || {};
-      images[pos] = publicUrl;
-      await setDoc(doc(db, 'site_images', 'galeria'), { ...data, images }, { merge: true });
-      
-      alert(`Foto ${pos} adicionada com sucesso!`);
+      const currentImages: Record<number, string> = { ...(data.images || galleryImages || {}) };
+
+      // 2. Find available empty slots (1 to 40)
+      const availableEmptySlots: number[] = [];
+
+      // If user clicked a specific empty slot, prioritize placing the first photo there
+      if (preferredPos && !currentImages[preferredPos]) {
+        availableEmptySlots.push(preferredPos);
+      }
+
+      for (let i = 1; i <= 40; i++) {
+        if (!currentImages[i] && !availableEmptySlots.includes(i)) {
+          availableEmptySlots.push(i);
+        }
+      }
+
+      if (availableEmptySlots.length === 0) {
+        alert("Todos os 40 espaços do álbum de fotos já estão preenchidos!");
+        return;
+      }
+
+      const uploadCount = Math.min(selectedFiles.length, availableEmptySlots.length);
+      const newImagesBatch: Record<number, string> = {};
+
+      for (let idx = 0; idx < uploadCount; idx++) {
+        const file = selectedFiles[idx];
+        const targetPos = availableEmptySlots[idx];
+
+        setUploadStatus(`Enviando foto ${idx + 1} de ${uploadCount}...`);
+
+        const compressedBase64 = await compressImage(file, 600, 600);
+        let finalUrl = compressedBase64;
+
+        try {
+          const response = await fetch(compressedBase64);
+          const blob = await response.blob();
+          const fileExtension = file.name.split('.').pop() || 'jpg';
+          const fileName = `image_${targetPos}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExtension}`;
+
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('album')
+            .upload(fileName, blob, {
+              contentType: file.type || 'image/jpeg',
+              upsert: true
+            });
+
+          if (!uploadError) {
+            const { data: { publicUrl } } = supabase.storage
+              .from('album')
+              .getPublicUrl(fileName);
+            if (publicUrl) {
+              finalUrl = publicUrl;
+            }
+          } else {
+            console.warn("Supabase upload notice, using compressedBase64 fallback:", uploadError);
+          }
+        } catch (sbErr) {
+          console.warn("Supabase storage fallback to compressedBase64:", sbErr);
+        }
+
+        newImagesBatch[targetPos] = finalUrl;
+      }
+
+      // Merge newly added photos with existing images - strictly preserving all already saved photos
+      const updatedImages = { ...currentImages, ...newImagesBatch };
+      await setDoc(doc(db, 'site_images', 'galeria'), { ...data, images: updatedImages }, { merge: true });
+
+      alert(`${uploadCount} foto(s) adicionada(s) com sucesso ao álbum!`);
     } catch (err: any) {
-      console.error(err);
+      console.error("Erro ao enviar fotos:", err);
       if (err.code === 'permission-denied') {
         alert('Você não tem permissão para adicionar fotos. Faça login primeiro.');
       } else {
-        alert(`Erro ao atualizar foto. Detalhes: ${err.message}`);
+        alert(`Erro ao adicionar fotos: ${err.message || 'Tente novamente.'}`);
       }
     } finally {
       setIsUploading(false);
+      setUploadStatus('');
     }
   };
 
@@ -567,96 +621,132 @@ function Album() {
 
   const handleDeleteMedia = async (pos: number, type: 'image' | 'video') => {
     try {
-      setIsUploading(true);
+      setDeletingMedia({ pos, type });
+
+      // Immediate local state update for instant responsive feedback
+      if (type === 'image') {
+        setGalleryImages((prev) => {
+          const next = { ...prev };
+          delete next[pos];
+          delete next[String(pos) as any];
+          return next;
+        });
+      } else {
+        setGalleryVideos((prev) => {
+          const next = { ...prev };
+          delete next[pos];
+          delete next[String(pos) as any];
+          return next;
+        });
+      }
 
       const currentDoc = await getDoc(doc(db, 'site_images', 'galeria'));
       const data = currentDoc.exists() ? currentDoc.data() : {};
       
       if (type === 'image') {
-        const images = data.images || {};
+        const images = { ...(data.images || {}) };
         delete images[pos];
+        delete images[String(pos)];
         await setDoc(doc(db, 'site_images', 'galeria'), { ...data, images });
       } else {
-        const videos = data.videos || {};
+        const videos = { ...(data.videos || {}) };
         delete videos[pos];
+        delete videos[String(pos)];
         await setDoc(doc(db, 'site_images', 'galeria'), { ...data, videos });
       }
-      
-      alert(`Mídia removida com sucesso!`);
     } catch (err: any) {
-      console.error(err);
+      console.error("Erro ao excluir mídia:", err);
       if (err.code === 'permission-denied') {
-        alert('Você não tem permissão para excluir. Faça login primeiro.');
+        alert('Você não tem permissão para excluir.');
       } else {
-        alert('Erro ao excluir. Tente novamente.');
+        alert(`Erro ao excluir: ${err.message || 'Tente novamente.'}`);
       }
     } finally {
-      setIsUploading(false);
+      setDeletingMedia(null);
     }
   };
 
   const renderImageSlots = () => {
     const slots = [];
     for (let i = 1; i <= 40; i++) {
+      const isThisDeleting = deletingMedia?.pos === i && deletingMedia?.type === 'image';
+      const imageUrl = galleryImages[i];
+
       slots.push(
         <div key={`img-${i}`} className="aspect-square bg-white p-2 md:p-3 shadow-md rounded-[1rem] transform odd:rotate-1 even:-rotate-1 hover:rotate-0 transition-all duration-300 border border-slate-50 group relative">
           <div className="w-full h-full bg-blue-50/50 flex items-center justify-center overflow-hidden relative rounded-lg">
-            <img 
-              src={galleryImages[i] || `/foto-galeria-${i}.jpg`} 
-              alt={`Momento ${i}`} 
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                if (e.currentTarget.nextElementSibling) {
-                  e.currentTarget.nextElementSibling.classList.remove('hidden');
-                }
-              }}
-            />
-            <div className="text-center p-4 absolute inset-0 flex flex-col items-center justify-center hidden bg-blue-50/50">
-              <Camera className="w-8 h-8 text-blue-200 mx-auto mb-2" />
-              <span className="text-blue-300 font-light italic text-sm mt-1">Vazio</span>
-            </div>
+            {imageUrl ? (
+              <img 
+                src={imageUrl} 
+                alt={`Momento ${i}`} 
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            ) : (
+              <div className="text-center p-4 absolute inset-0 flex flex-col items-center justify-center bg-blue-50/50">
+                <Camera className="w-8 h-8 text-blue-200 mx-auto mb-2" />
+                <span className="text-blue-300 font-light italic text-xs mt-1">Espaço {i}</span>
+              </div>
+            )}
+
+            {isThisDeleting && (
+              <div className="absolute inset-0 bg-black/70 z-30 flex flex-col items-center justify-center text-white text-xs gap-2 backdrop-blur-xs rounded-lg">
+                <Loader2 className="w-6 h-6 animate-spin text-white" />
+                <span className="font-medium">Excluindo...</span>
+              </div>
+            )}
           </div>
           
-          <label className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 ${galleryImages[i] ? 'group-hover:opacity-0' : 'group-hover:opacity-100'} transition-opacity rounded-[1rem] cursor-pointer ${isUploading ? 'pointer-events-none' : ''}`}>
-            <Upload className="w-8 h-8 text-white mb-2" />
-            <span className="text-white text-xs font-medium px-2 text-center">Adicionar Foto</span>
-            <input 
-              type="file" 
-              accept="image/*" 
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  handleImageUpload(i, e.target.files[0]);
-                }
-              }} 
-              className="hidden" 
-              disabled={isUploading}
-            />
-          </label>
-
-          {galleryImages[i] && (
-            <div className="absolute top-2 right-2 z-20 flex gap-2 transition-opacity">
-              <label className={`flex flex-col items-center justify-center bg-black/60 p-2 rounded-full cursor-pointer shadow-lg hover:bg-black/80 ${isUploading ? 'pointer-events-none' : ''}`}>
+          {!imageUrl ? (
+            <label className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] cursor-pointer ${isUploading || isThisDeleting ? 'pointer-events-none' : ''}`}>
+              <Upload className="w-8 h-8 text-white mb-1.5" />
+              <span className="text-white text-xs font-semibold px-2 text-center">Adicionar Fotos</span>
+              <span className="text-white/80 text-[10px] font-light">(até 5 fotos)</span>
+              <input 
+                type="file" 
+                multiple
+                accept="image/*" 
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handleMultipleImageUpload(e.target.files, i);
+                    e.target.value = '';
+                  }
+                }} 
+                className="hidden" 
+                disabled={isUploading || isThisDeleting}
+              />
+            </label>
+          ) : (
+            <div className="absolute top-2 right-2 z-20 flex gap-2">
+              <label 
+                className={`flex items-center justify-center bg-black/70 hover:bg-black p-2 rounded-full cursor-pointer shadow-lg transition-all ${isUploading || isThisDeleting ? 'pointer-events-none opacity-50' : ''}`} 
+                title="Adicionar mais fotos (até 5)"
+              >
                 <Upload className="w-4 h-4 text-white" />
                 <input 
                   type="file" 
+                  multiple
                   accept="image/*" 
                   onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleImageUpload(i, e.target.files[0]);
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleMultipleImageUpload(e.target.files);
+                      e.target.value = '';
                     }
                   }} 
                   className="hidden" 
-                  disabled={isUploading}
+                  disabled={isUploading || isThisDeleting}
                 />
               </label>
               <button
+                type="button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if(window.confirm('Deseja excluir esta foto?')) handleDeleteMedia(i, 'image');
+                  handleDeleteMedia(i, 'image');
                 }}
-                className={`bg-red-500/80 p-2 rounded-full cursor-pointer shadow-lg text-white hover:bg-red-600 ${isUploading ? 'pointer-events-none' : ''}`}
+                disabled={isUploading || isThisDeleting}
+                className={`bg-red-600 hover:bg-red-700 active:scale-95 p-2 rounded-full cursor-pointer shadow-lg text-white transition-all ${isUploading || isThisDeleting ? 'pointer-events-none opacity-50' : ''}`}
+                title="Excluir foto do álbum"
+                aria-label={`Excluir foto ${i}`}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -671,45 +761,62 @@ function Album() {
   const renderVideoSlots = () => {
     const slots = [];
     for (let i = 1; i <= 3; i++) {
+      const isThisDeleting = deletingMedia?.pos === i && deletingMedia?.type === 'video';
+      const videoUrl = galleryVideos[i];
+
       slots.push(
         <div key={`vid-${i}`} className="aspect-video bg-white p-2 md:p-3 shadow-md rounded-[1rem] transform hover:scale-[1.02] transition-all duration-300 border border-slate-50 group relative">
           <div className="w-full h-full bg-blue-50/50 flex items-center justify-center overflow-hidden relative rounded-lg">
-            {galleryVideos[i] ? (
-              <VideoEmbed url={galleryVideos[i]} />
+            {videoUrl ? (
+              <VideoEmbed url={videoUrl} />
             ) : (
               <div className="text-center p-4 flex flex-col items-center justify-center">
                 <Video className="w-8 h-8 text-blue-200 mx-auto mb-2" />
                 <span className="text-blue-300 font-light italic text-sm mt-1">Nenhum vídeo</span>
               </div>
             )}
+
+            {isThisDeleting && (
+              <div className="absolute inset-0 bg-black/70 z-30 flex flex-col items-center justify-center text-white text-xs gap-2 backdrop-blur-xs rounded-lg">
+                <Loader2 className="w-6 h-6 animate-spin text-white" />
+                <span className="font-medium">Excluindo...</span>
+              </div>
+            )}
           </div>
           
-          <button
-            onClick={() => handleVideoLink(i)}
-            disabled={isUploading}
-            className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 ${galleryVideos[i] ? 'group-hover:opacity-0' : 'group-hover:opacity-100'} transition-opacity rounded-[1rem] cursor-pointer ${isUploading ? 'pointer-events-none' : ''}`}
-          >
-            <Upload className="w-8 h-8 text-white mb-2" />
-            <span className="text-white text-xs font-medium px-2 text-center">Adicionar Link de Vídeo</span>
-          </button>
+          {!videoUrl && (
+            <button
+              onClick={() => handleVideoLink(i)}
+              disabled={isUploading || isThisDeleting}
+              className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] cursor-pointer"
+            >
+              <Upload className="w-8 h-8 text-white mb-2" />
+              <span className="text-white text-xs font-medium px-2 text-center">Adicionar Link de Vídeo</span>
+            </button>
+          )}
           
-          {/* Allow changing or deleting video if it exists via small buttons */}
-          {galleryVideos[i] && (
-            <div className="absolute top-2 right-2 z-20 flex gap-2 transition-opacity">
+          {videoUrl && (
+            <div className="absolute top-2 right-2 z-20 flex gap-2">
               <button
+                type="button"
                 onClick={() => handleVideoLink(i)}
-                disabled={isUploading}
-                className={`flex flex-col items-center justify-center bg-black/60 p-2 rounded-full cursor-pointer shadow-lg hover:bg-black/80 ${isUploading ? 'pointer-events-none' : ''}`}
+                disabled={isUploading || isThisDeleting}
+                className="flex items-center justify-center bg-black/70 hover:bg-black p-2 rounded-full cursor-pointer shadow-lg text-white transition-all"
+                title="Alterar link de vídeo"
               >
                 <Upload className="w-4 h-4 text-white" />
               </button>
               <button
+                type="button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if(window.confirm('Deseja excluir este vídeo?')) handleDeleteMedia(i, 'video');
+                  handleDeleteMedia(i, 'video');
                 }}
-                className={`bg-red-500/80 p-2 rounded-full cursor-pointer shadow-lg text-white hover:bg-red-600 ${isUploading ? 'pointer-events-none' : ''}`}
+                disabled={isUploading || isThisDeleting}
+                className="bg-red-600 hover:bg-red-700 active:scale-95 p-2 rounded-full cursor-pointer shadow-lg text-white transition-all"
+                title="Excluir vídeo"
+                aria-label={`Excluir vídeo ${i}`}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -727,16 +834,58 @@ function Album() {
         <Camera className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
         <h2 className="text-4xl md:text-5xl font-script text-[#ce9b2c]">Nossos Momentos</h2>
         <p className="text-slate-500 max-w-lg mx-auto font-light">
-          {isUploading ? "Enviando arquivo, aguarde..." : "Clique nos espaços vazios para adicionar fotos ou vídeos desse dia especial!"}
+          {isUploading ? (uploadStatus || "Enviando arquivo, aguarde...") : "Clique nos espaços vazios ou no botão abaixo para adicionar até 5 fotos ou vídeos desse dia especial!"}
         </p>
       </div>
 
       <div className="space-y-10">
-        <div className="space-y-4">
-          <div className="flex items-center justify-center gap-2 mb-6">
+        <div className="space-y-6">
+          <div className="flex items-center justify-center gap-2">
             <Camera className="w-5 h-5 text-blue-400" />
             <h3 className="text-xl font-medium text-slate-700">Fotos</h3>
           </div>
+
+          {/* Guest Photo Upload Card */}
+          <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-6 text-center max-w-xl mx-auto space-y-3 shadow-xs">
+            <div className="flex items-center justify-center gap-2 text-blue-900 font-semibold text-base">
+              <Images className="w-5 h-5 text-blue-600" />
+              <span>Compartilhe fotos com os noivos</span>
+            </div>
+            <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+              Você pode selecionar até <strong className="font-semibold text-blue-950">5 fotos de uma vez</strong> para preencher os espaços do álbum!
+            </p>
+
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <label className={`inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer text-sm ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                {isUploading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Upload className="w-5 h-5" />
+                )}
+                <span>{isUploading ? (uploadStatus || "Enviando fotos...") : "Selecionar Fotos (até 5)"}</span>
+                <input 
+                  type="file" 
+                  multiple 
+                  accept="image/*" 
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleMultipleImageUpload(e.target.files);
+                      e.target.value = '';
+                    }
+                  }}
+                  className="hidden" 
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+
+            {isUploading && (
+              <div className="text-xs font-semibold text-blue-700 animate-pulse pt-1">
+                {uploadStatus || "Processando e enviando imagens, por favor aguarde..."}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {renderImageSlots()}
           </div>
