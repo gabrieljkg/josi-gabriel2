@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, useNavigate, Outlet, useLocation, Link, Navigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Heart, Calendar, Camera, MessageCircle, CheckCircle, Gift, Lock, LogOut, Menu, X, Upload, Trash2, Download, Video, Loader2, Images } from 'lucide-react';
+import { Heart, Calendar, Camera, MessageCircle, CheckCircle, Gift, Lock, LogOut, Menu, X, Upload, Trash2, Download, Video, Loader2, Images, Eye, ZoomIn } from 'lucide-react';
 import { auth, db, storage } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, deleteDoc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
@@ -478,6 +478,8 @@ function Album() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
   const [deletingMedia, setDeletingMedia] = useState<{ pos: number; type: 'image' | 'video' } | null>(null);
+  const [downloadingPos, setDownloadingPos] = useState<number | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{ pos: number; url: string } | null>(null);
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, setUser);
@@ -493,6 +495,49 @@ function Album() {
       unsub();
     };
   }, []);
+
+  const handleDownloadImage = async (url: string, pos: number, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    try {
+      setDownloadingPos(pos);
+      const filename = `foto-casamento-momento-${pos}.jpg`;
+
+      if (url.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        const response = await fetch(url, { mode: 'cors' });
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+      }
+    } catch (err) {
+      console.warn("Direct download fallback:", err);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `foto-casamento-momento-${pos}.jpg`;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      setDownloadingPos(null);
+    }
+  };
 
   const handleMultipleImageUpload = async (filesList: FileList | File[], preferredPos?: number) => {
     const rawFiles = Array.from(filesList);
@@ -623,6 +668,10 @@ function Album() {
     try {
       setDeletingMedia({ pos, type });
 
+      if (previewPhoto?.pos === pos && type === 'image') {
+        setPreviewPhoto(null);
+      }
+
       // Immediate local state update for instant responsive feedback
       if (type === 'image') {
         setGalleryImages((prev) => {
@@ -670,26 +719,47 @@ function Album() {
     const slots = [];
     for (let i = 1; i <= 40; i++) {
       const isThisDeleting = deletingMedia?.pos === i && deletingMedia?.type === 'image';
+      const isThisDownloading = downloadingPos === i;
       const imageUrl = galleryImages[i];
 
       slots.push(
-        <div key={`img-${i}`} className="aspect-square bg-white p-2 md:p-3 shadow-md rounded-[1rem] transform odd:rotate-1 even:-rotate-1 hover:rotate-0 transition-all duration-300 border border-slate-50 group relative">
-          <div className="w-full h-full bg-blue-50/50 flex items-center justify-center overflow-hidden relative rounded-lg">
+        <div 
+          key={`img-${i}`} 
+          className="aspect-square bg-white p-3 md:p-3.5 shadow-md hover:shadow-xl rounded-2xl md:rounded-[1.25rem] transition-all duration-300 border border-slate-100 group relative flex flex-col"
+        >
+          <div className="w-full h-full bg-blue-50/50 flex items-center justify-center overflow-hidden relative rounded-xl">
             {imageUrl ? (
-              <img 
-                src={imageUrl} 
-                alt={`Momento ${i}`} 
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
+              <div 
+                className="w-full h-full cursor-pointer relative"
+                onClick={() => setPreviewPhoto({ pos: i, url: imageUrl })}
+                title="Clique para ampliar e ver detalhes"
+              >
+                <img 
+                  src={imageUrl} 
+                  alt={`Momento ${i}`} 
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+
+                {/* Bottom hint overlay */}
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-2.5 pt-6 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between pointer-events-none">
+                  <span className="text-xs font-semibold">Foto {i}</span>
+                  <span className="text-[11px] text-white/90 flex items-center gap-1 font-light">
+                    <ZoomIn className="w-3.5 h-3.5" /> Ampliar
+                  </span>
+                </div>
+              </div>
             ) : (
-              <div className="text-center p-4 absolute inset-0 flex flex-col items-center justify-center bg-blue-50/50">
-                <Camera className="w-8 h-8 text-blue-200 mx-auto mb-2" />
-                <span className="text-blue-300 font-light italic text-xs mt-1">Espaço {i}</span>
+              <div className="text-center p-4 absolute inset-0 flex flex-col items-center justify-center bg-blue-50/40 border-2 border-dashed border-blue-200/80 rounded-xl group-hover:border-blue-400 group-hover:bg-blue-50/80 transition-all">
+                <div className="w-12 h-12 rounded-full bg-white shadow-xs flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                  <Camera className="w-6 h-6 text-blue-400" />
+                </div>
+                <span className="text-slate-700 font-semibold text-xs">Espaço {i}</span>
+                <span className="text-blue-600 font-normal text-[11px] mt-0.5">Adicionar foto</span>
               </div>
             )}
 
             {isThisDeleting && (
-              <div className="absolute inset-0 bg-black/70 z-30 flex flex-col items-center justify-center text-white text-xs gap-2 backdrop-blur-xs rounded-lg">
+              <div className="absolute inset-0 bg-black/75 z-30 flex flex-col items-center justify-center text-white text-xs gap-2 backdrop-blur-xs rounded-xl">
                 <Loader2 className="w-6 h-6 animate-spin text-white" />
                 <span className="font-medium">Excluindo...</span>
               </div>
@@ -697,10 +767,10 @@ function Album() {
           </div>
           
           {!imageUrl ? (
-            <label className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] cursor-pointer ${isUploading || isThisDeleting ? 'pointer-events-none' : ''}`}>
-              <Upload className="w-8 h-8 text-white mb-1.5" />
-              <span className="text-white text-xs font-semibold px-2 text-center">Adicionar Fotos</span>
-              <span className="text-white/80 text-[10px] font-light">(até 5 fotos)</span>
+            <label className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl md:rounded-[1.25rem] cursor-pointer ${isUploading || isThisDeleting ? 'pointer-events-none' : ''}`}>
+              <Upload className="w-9 h-9 text-white mb-2" />
+              <span className="text-white text-sm font-semibold px-2 text-center">Adicionar Fotos</span>
+              <span className="text-white/85 text-xs font-light mt-0.5">(selecione até 5 fotos)</span>
               <input 
                 type="file" 
                 multiple
@@ -716,9 +786,26 @@ function Album() {
               />
             </label>
           ) : (
-            <div className="absolute top-2 right-2 z-20 flex gap-2">
+            <div className="absolute top-2.5 right-2.5 z-20 flex gap-1.5 md:gap-2">
+              {/* Download button */}
+              <button
+                type="button"
+                onClick={(e) => handleDownloadImage(imageUrl, i, e)}
+                disabled={isThisDownloading || isUploading || isThisDeleting}
+                className="bg-blue-600 hover:bg-blue-700 active:scale-95 p-2 rounded-full cursor-pointer shadow-lg text-white transition-all"
+                title="Baixar esta foto"
+                aria-label={`Baixar foto ${i}`}
+              >
+                {isThisDownloading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Add more photos button */}
               <label 
-                className={`flex items-center justify-center bg-black/70 hover:bg-black p-2 rounded-full cursor-pointer shadow-lg transition-all ${isUploading || isThisDeleting ? 'pointer-events-none opacity-50' : ''}`} 
+                className={`flex items-center justify-center bg-black/70 hover:bg-black p-2 rounded-full cursor-pointer shadow-lg transition-all text-white ${isUploading || isThisDeleting ? 'pointer-events-none opacity-50' : ''}`} 
                 title="Adicionar mais fotos (até 5)"
               >
                 <Upload className="w-4 h-4 text-white" />
@@ -736,6 +823,8 @@ function Album() {
                   disabled={isUploading || isThisDeleting}
                 />
               </label>
+
+              {/* Delete button */}
               <button
                 type="button"
                 onClick={(e) => {
@@ -765,19 +854,20 @@ function Album() {
       const videoUrl = galleryVideos[i];
 
       slots.push(
-        <div key={`vid-${i}`} className="aspect-video bg-white p-2 md:p-3 shadow-md rounded-[1rem] transform hover:scale-[1.02] transition-all duration-300 border border-slate-50 group relative">
-          <div className="w-full h-full bg-blue-50/50 flex items-center justify-center overflow-hidden relative rounded-lg">
+        <div key={`vid-${i}`} className="aspect-video bg-white p-3 md:p-4 shadow-md hover:shadow-xl rounded-2xl md:rounded-[1.25rem] transition-all duration-300 border border-slate-100 group relative">
+          <div className="w-full h-full bg-blue-50/50 flex items-center justify-center overflow-hidden relative rounded-xl">
             {videoUrl ? (
               <VideoEmbed url={videoUrl} />
             ) : (
               <div className="text-center p-4 flex flex-col items-center justify-center">
-                <Video className="w-8 h-8 text-blue-200 mx-auto mb-2" />
-                <span className="text-blue-300 font-light italic text-sm mt-1">Nenhum vídeo</span>
+                <Video className="w-9 h-9 text-blue-300 mx-auto mb-2" />
+                <span className="text-slate-600 font-medium text-xs">Espaço Vídeo {i}</span>
+                <span className="text-blue-500 text-[11px] mt-0.5">Clique para adicionar link</span>
               </div>
             )}
 
             {isThisDeleting && (
-              <div className="absolute inset-0 bg-black/70 z-30 flex flex-col items-center justify-center text-white text-xs gap-2 backdrop-blur-xs rounded-lg">
+              <div className="absolute inset-0 bg-black/75 z-30 flex flex-col items-center justify-center text-white text-xs gap-2 backdrop-blur-xs rounded-xl">
                 <Loader2 className="w-6 h-6 animate-spin text-white" />
                 <span className="font-medium">Excluindo...</span>
               </div>
@@ -788,7 +878,7 @@ function Album() {
             <button
               onClick={() => handleVideoLink(i)}
               disabled={isUploading || isThisDeleting}
-              className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] cursor-pointer"
+              className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl md:rounded-[1.25rem] cursor-pointer"
             >
               <Upload className="w-8 h-8 text-white mb-2" />
               <span className="text-white text-xs font-medium px-2 text-center">Adicionar Link de Vídeo</span>
@@ -796,7 +886,7 @@ function Album() {
           )}
           
           {videoUrl && (
-            <div className="absolute top-2 right-2 z-20 flex gap-2">
+            <div className="absolute top-2.5 right-2.5 z-20 flex gap-2">
               <button
                 type="button"
                 onClick={() => handleVideoLink(i)}
@@ -829,12 +919,12 @@ function Album() {
   };
 
   return (
-    <div className="w-full space-y-12 bg-white/60 backdrop-blur-sm p-8 md:p-16 rounded-[3rem] border border-blue-100/50 text-center shadow-sm">
+    <div className="w-full space-y-12 bg-white/60 backdrop-blur-sm p-6 sm:p-8 md:p-14 rounded-[3rem] border border-blue-100/50 text-center shadow-sm">
       <div className="space-y-4">
         <Camera className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
         <h2 className="text-4xl md:text-5xl font-script text-[#ce9b2c]">Nossos Momentos</h2>
         <p className="text-slate-500 max-w-lg mx-auto font-light">
-          {isUploading ? (uploadStatus || "Enviando arquivo, aguarde...") : "Clique nos espaços vazios ou no botão abaixo para adicionar até 5 fotos ou vídeos desse dia especial!"}
+          {isUploading ? (uploadStatus || "Enviando arquivo, aguarde...") : "Clique nos espaços vazios para adicionar até 5 fotos de uma vez, ou clique nas fotos para ampliá-las e baixá-las!"}
         </p>
       </div>
 
@@ -886,7 +976,8 @@ function Album() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {/* Photo slots with enlarged card sizes */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 md:gap-7">
             {renderImageSlots()}
           </div>
         </div>
@@ -901,6 +992,68 @@ function Album() {
           </div>
         </div>
       </div>
+
+      {/* Full Photo Zoom Modal */}
+      {previewPhoto && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 md:p-8 animate-fadeIn"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div 
+            className="relative max-w-4xl w-full max-h-[90vh] bg-slate-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Top Bar */}
+            <div className="flex items-center justify-between px-5 py-3.5 bg-slate-950/80 border-b border-white/10 text-white">
+              <span className="font-medium text-sm text-slate-200">
+                Foto #{previewPhoto.pos} do Álbum
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadImage(previewPhoto.url, previewPhoto.pos)}
+                  disabled={downloadingPos === previewPhoto.pos}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium shadow-sm transition-all"
+                >
+                  {downloadingPos === previewPhoto.pos ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5" />
+                  )}
+                  <span>Baixar Foto</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDeleteMedia(previewPhoto.pos, 'image');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-lg text-xs font-medium shadow-sm transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Excluir</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewPhoto(null)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors ml-1"
+                  title="Fechar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Image View */}
+            <div className="flex-1 flex items-center justify-center p-4 overflow-auto bg-black/40">
+              <img 
+                src={previewPhoto.url} 
+                alt={`Momento ${previewPhoto.pos}`} 
+                className="max-h-[72vh] max-w-full object-contain rounded-lg shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
